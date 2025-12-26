@@ -1,13 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Switch, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { getUserInfo, clearSession } from '../services/api';
 
 export default function SettingsScreen({ navigation }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [userData, setUserData] = useState({
+    fullName: 'Cargando...',
+    role: '...'
+  });
+  
   const userImageUri = 'https://randomuser.me/api/portraits/men/32.jpg';
 
-  const handleLogout = () => {
+  useEffect(() => {
+    const loadUser = async () => {
+      const info = await getUserInfo();
+      if (info) {
+        setUserData({
+          fullName: `${info.firstName || ''} ${info.lastName || ''}`.trim(),
+          role: info.jobPosition || 'Usuario'
+        });
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleLogout = async () => {
+    await clearSession();
     navigation.reset({
       index: 0,
       routes: [{ name: 'Login' }],
@@ -28,8 +48,8 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.profileCard}>
             <Image source={{ uri: userImageUri }} style={styles.avatar} />
             <View style={styles.userInfo}>
-                <Text style={styles.userName}>Armando Díaz</Text>
-                <Text style={styles.userRole}>Soporte Técnico</Text>
+                <Text style={styles.userName}>{userData.fullName}</Text>
+                <Text style={styles.userRole}>{userData.role}</Text>
             </View>
         </View>
 
@@ -75,7 +95,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 20, // Aumentado un poco para dar más aire
+    paddingVertical: 20, 
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',

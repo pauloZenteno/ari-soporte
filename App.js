@@ -12,6 +12,8 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import Header from './src/components/Header';
 import BottomNav from './src/components/BottomNav';
 
+import { ClientProvider } from './src/context/ClientContext'; 
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -22,7 +24,6 @@ function MainTabs() {
       screenOptions={({ navigation }) => ({
         header: () => <Header navigation={navigation} />, 
         headerShown: true,
-        // Header sólido (no transparente) para que empuje el contenido hacia abajo
         headerTransparent: false, 
       })}
     >
@@ -47,22 +48,23 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <NavigationContainer>
-      {/* CAMBIO: style="light" para texto blanco en la barra de estado */}
-      <StatusBar style="light" backgroundColor="#2b5cb5" />
-      
-      <Stack.Navigator 
-        initialRouteName="Login"
-        screenOptions={{ 
-          headerShown: false,
-          animation: 'default',
-          gestureEnabled: true,
-        }}
-      >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ClientProvider>
+      <NavigationContainer>
+        <StatusBar style="light" backgroundColor="#2b5cb5" />
+        
+        <Stack.Navigator 
+          initialRouteName="Login"
+          screenOptions={{ 
+            headerShown: false,
+            animation: 'default',
+            gestureEnabled: true,
+          }}
+        >
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ClientProvider>
   );
 }

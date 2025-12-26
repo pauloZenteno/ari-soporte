@@ -1,31 +1,64 @@
 import React, { useState } from 'react';
 import { 
   StyleSheet, Text, View, TextInput, TouchableOpacity, 
-  KeyboardAvoidingView, Platform, Dimensions 
+  KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator, Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import api, { setSession, setUserInfo } from '../services/api';
 
-// IMPORTANTE: Importamos los SVGs como componentes
 import LogoSvg from '../assets/logo_arisoporte.svg'; 
 import BackgroundSvg from '../assets/login_background.svg'; 
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    navigation.replace('MainTabs');
+  const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert('Error', 'Por favor ingresa usuario y contraseña');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await api.post('/administration/Users/login', {
+        username: username,
+        password: password
+      });
+
+      const { 
+        accessToken, 
+        refreshToken, 
+        firstName, 
+        lastName, 
+        jobPosition 
+      } = response.data;
+
+      await setSession(accessToken, refreshToken);
+      await setUserInfo({ firstName, lastName, jobPosition });
+
+      navigation.replace('MainTabs');
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        'Error de Inicio de Sesión', 
+        'Credenciales incorrectas o error en el servidor.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <View style={styles.mainContainer}>
       
-      {/* FONDO SVG: Posición absoluta para cubrir todo */}
       <View style={styles.backgroundContainer}>
-        {/* Usamos preserveAspectRatio para que actúe como "cover" */}
         <BackgroundSvg width={width} height={height} preserveAspectRatio="xMidYMid slice" />
       </View>
 
@@ -35,21 +68,18 @@ export default function LoginScreen({ navigation }) {
       >
         <View style={styles.contentContainer}>
           
-          {/* LOGO SVG */}
           <View style={styles.logoContainer}>
-            {/* Ajusta width/height según el tamaño real de tu diseño */}
             <LogoSvg width={150} height={150} />
             <Text style={styles.logoText}>Ari | Soporte</Text>
           </View>
 
-          {/* INPUTS */}
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder="Usuario"
               placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
+              value={username}
+              onChangeText={setUsername}
               autoCapitalize="none"
             />
             <TextInput
@@ -62,7 +92,6 @@ export default function LoginScreen({ navigation }) {
             />
           </View>
 
-          {/* OPCIONES */}
           <View style={styles.optionsRow}>
             <TouchableOpacity 
               style={styles.checkboxContainer} 
@@ -81,9 +110,16 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* BOTÓN */}
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>INICIAR SESIÓN</Text>
+          <TouchableOpacity 
+            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>INICIAR SESIÓN</Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.footerContainer}>
@@ -104,7 +140,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backgroundContainer: {
-    ...StyleSheet.absoluteFillObject, // Esto hace que el view ocupe toda la pantalla detrás
+    ...StyleSheet.absoluteFillObject,
     zIndex: -1, 
   },
   container: {
@@ -123,7 +159,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: 'white',
-    marginTop: 10, // Espacio entre el SVG y el texto
+    marginTop: 10,
   },
   inputContainer: {
     marginBottom: 20,
@@ -170,6 +206,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#a5d6b9',
   },
   loginButtonText: {
     color: 'white',
