@@ -1,198 +1,211 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Switch, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View, Image, TouchableOpacity, Alert, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getUserInfo, clearSession } from '../services/authService';
+import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
+import { getUserInfo, logout } from '../services/authService';
 
 export default function SettingsScreen({ navigation }) {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [userData, setUserData] = useState({
-    fullName: 'Cargando...',
-    role: '...'
-  });
-  
-  const userImageUri = 'https://randomuser.me/api/portraits/men/32.jpg';
+  const [userInfo, setUserInfoState] = useState(null);
+  const [imageSource, setImageSource] = useState(require('../assets/header_logo.png')); 
 
   useEffect(() => {
-    const loadUser = async () => {
-      const info = await getUserInfo();
-      if (info) {
-        setUserData({
-          fullName: `${info.firstName || ''} ${info.lastName || ''}`.trim(),
-          role: info.jobPosition || 'Usuario'
-        });
+    const loadProfileData = async () => {
+      try {
+        const user = await getUserInfo();
+        const token = await SecureStore.getItemAsync('accessToken');
+
+        if (user) {
+          setUserInfoState(user);
+          
+          if (user.id && token) {
+            setImageSource({
+              uri: `https://arierp.com/api/humanresources/employees/${user.id}/photo`,
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando perfil:', error);
       }
     };
-    loadUser();
+
+    loadProfileData();
   }, []);
 
-  const handleLogout = async () => {
-    await clearSession();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro que deseas salir?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Salir", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await logout();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.error("Error al cerrar sesión:", error);
+              navigation.replace('Login');
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.mainContainer}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Configuración</Text>
-        <View style={{ width: 24 }} />
+        <Text style={styles.headerTitle}>Mi Perfil</Text>
       </View>
 
       <View style={styles.content}>
         <View style={styles.profileCard}>
-            <Image source={{ uri: userImageUri }} style={styles.avatar} />
-            <View style={styles.userInfo}>
-                <Text style={styles.userName}>{userData.fullName}</Text>
-                <Text style={styles.userRole}>{userData.role}</Text>
-            </View>
-        </View>
-
-        <Text style={styles.sectionHeader}>General</Text>
-        
-        <View style={styles.optionRow}>
-            <View style={styles.optionInfo}>
-                <View style={[styles.iconContainer, { backgroundColor: '#E8F0FE' }]}>
-                    <Ionicons name="notifications" size={20} color="#2b5cb5" />
-                </View>
-                <Text style={styles.optionText}>Notificaciones Push</Text>
-            </View>
-            <Switch
-                trackColor={{ false: "#D1D5DB", true: "#6FCF97" }}
-                thumbColor={"#fff"}
-                ios_backgroundColor="#D1D5DB"
-                onValueChange={setNotificationsEnabled}
-                value={notificationsEnabled}
+            <View style={styles.imageContainer}>
+            <Image 
+                source={imageSource}
+                style={styles.profileImage}
+                onError={() => setImageSource(require('../assets/header_logo.png'))} 
             />
+            </View>
+            
+            <Text style={styles.nameText}>
+            {userInfo ? `${userInfo.firstName} ${userInfo.lastName}` : 'Cargando...'}
+            </Text>
+            <Text style={styles.jobText}>
+            {userInfo ? userInfo.jobPosition : ''}
+            </Text>
         </View>
 
-        <Text style={styles.sectionHeader}>Sesión</Text>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons name="log-out" size={20} color="#EF4444" />
+        <View style={styles.menuContainer}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+            <View style={styles.menuIconDanger}>
+                <Ionicons name="log-out-outline" size={22} color="#EF4444" />
             </View>
-            <Text style={styles.logoutText}>Cerrar sesión</Text>
-            <Ionicons name="chevron-forward" size={20} color="#EF4444" style={{marginLeft: 'auto'}}/>
-        </TouchableOpacity>
+            <Text style={styles.menuTextDanger}>Cerrar Sesión</Text>
+            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+            </TouchableOpacity>
+        </View>
+
+        <View style={styles.footer}>
+            <Text style={styles.versionText}>Ari Soporte v1.0.0</Text>
+        </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  mainContainer: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 20, 
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    backgroundColor: '#F0F2F5',
+    paddingTop: Constants.statusBarHeight, 
   },
   content: {
-    padding: 20,
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#F0F2F5',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#111827',
   },
   profileCard: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 30,
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  imageContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F3F4F6',
+    marginBottom: 15,
+    overflow: 'hidden',
+    borderWidth: 4,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  profileImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  nameText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+  jobText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontWeight: '500'
+  },
+  menuContainer: {
+    paddingHorizontal: 20,
+  },
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
+    backgroundColor: 'white',
+    padding: 18,
     borderRadius: 16,
-    marginBottom: 25,
+    marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
     elevation: 2,
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  userInfo: {
-    marginLeft: 15,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  userRole: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  sectionHeader: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 10,
-    marginLeft: 5,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 16,
-    marginBottom: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  optionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
+  menuIconDanger: {
+    width: 40,
+    height: 40,
     borderRadius: 10,
+    backgroundColor: '#FEF2F2',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 15,
   },
-  optionText: {
+  menuTextDanger: {
+    flex: 1,
     fontSize: 16,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff', 
-    padding: 15,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  logoutText: {
-    fontSize: 16,
-    color: '#EF4444',
     fontWeight: '600',
+    color: '#EF4444',
+  },
+  footer: {
+    padding: 20,
+    alignItems: 'center',
+    marginTop: 'auto',
+    marginBottom: 10,
+  },
+  versionText: {
+    color: '#9CA3AF',
+    fontSize: 13,
   },
 });

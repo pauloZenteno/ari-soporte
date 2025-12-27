@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { 
-  StyleSheet, View, TextInput, TouchableOpacity, 
-  KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator, Alert, Image, Text
+  StyleSheet, Text, View, TextInput, TouchableOpacity, 
+  KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator, Alert, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { login, setSession, setUserInfo } from '../services/authService';
 import { useClients } from '../context/ClientContext';
-
 import BackgroundSvg from '../assets/login_background.svg'; 
 
 const { width, height } = Dimensions.get('window');
@@ -32,13 +31,14 @@ export default function LoginScreen({ navigation }) {
       const { 
         accessToken, 
         refreshToken, 
+        id,
         firstName, 
         lastName, 
         jobPosition 
       } = data;
 
       await setSession(accessToken, refreshToken);
-      await setUserInfo({ firstName, lastName, jobPosition });
+      await setUserInfo({ id, firstName, lastName, jobPosition });
 
       loadInitialData();
 

@@ -37,3 +37,14 @@ export const clearSession = async () => {
   await SecureStore.deleteItemAsync('refreshToken');
   await SecureStore.deleteItemAsync('userInfo');
 };
+
+export const logout = async () => {
+  try {
+    await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('refreshToken');
+    await SecureStore.deleteItemAsync('userInfo');
+  } catch (error) {
+    console.error('Error durante logout:', error);
+    throw error;
+  }
+};
