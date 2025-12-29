@@ -30,7 +30,6 @@ export default function BottomNav({ state, descriptors, navigation }) {
           if (isFocused) {
             return (
               <View key={route.key} style={styles.navPillContainer}>
-                {/* CAMBIO: Usamos View con color sólido en lugar de LinearGradient */}
                 <View style={[styles.navPill, { backgroundColor: '#2b5cb5' }]}>
                   <Ionicons name={iconName} size={20} color="white" />
                   <Text style={styles.navPillText}>{label}</Text>
@@ -71,7 +70,6 @@ const styles = StyleSheet.create({
     maxWidth: 350,
     height: 70,
     borderRadius: 35,
-    // Fondo blanco translúcido para la barra general
     backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.95)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.5)',
@@ -89,7 +87,6 @@ const styles = StyleSheet.create({
     width: 60,
   },
   navPillContainer: {
-    // Sombra suave para que el botón azul resalte sobre la barra blanca
     shadowColor: '#2b5cb5',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

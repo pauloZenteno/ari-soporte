@@ -7,8 +7,6 @@ export default function Header({ navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        // Gradiente de Azul Corporativo (#2b5cb5) a un Azul Profundo (#1e40af)
-        // Esto crea un efecto elegante y profesional
         colors={['#2b5cb5', '#1e40af']} 
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -16,15 +14,13 @@ export default function Header({ navigation }) {
       >
         <View style={styles.headerContent}>
           
-          {/* Logo (Asegúrate de que tu SVG tenga relleno blanco o se vea bien en oscuro) */}
           <View style={styles.logoContainer}>
               <Image 
                 source={require('../assets/header_logo.png')} 
-                style={{ width: 180, height: 60, resizeMode: 'contain' }} // Ajusta width/height según tu diseño
+                style={{ width: 180, height: 60, resizeMode: 'contain' }} 
               />
           </View>
           
-          {/* Botón con fondo translúcido (Efecto cristal) */}
           <TouchableOpacity 
             style={styles.iconButton} 
             onPress={() => navigation.navigate('Settings')}
@@ -40,17 +36,16 @@ export default function Header({ navigation }) {
 
 const styles = StyleSheet.create({
   container: {
-    // Sombra para dar elevación al header sobre el contenido
     shadowColor: '#2b5cb5',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
     marginBottom: 5,
-    backgroundColor: 'white', // Fondo base para evitar glitches
+    backgroundColor: 'white', 
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    overflow: 'hidden', // Necesario para que el gradiente respete los bordes redondeados
+    overflow: 'hidden', 
   },
   headerGradient: {
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 60,
@@ -65,8 +60,8 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 8,
     borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)', // Blanco al 20% de opacidad
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', 
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)', // Borde sutil
+    borderColor: 'rgba(255, 255, 255, 0.3)', 
   },
 });
