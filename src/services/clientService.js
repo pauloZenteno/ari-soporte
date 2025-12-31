@@ -21,3 +21,12 @@ export const updateClientStatus = async (id, status, addDays = false) => {
     throw error;
   }
 };
+
+export const updateClient = async (id, clientData) => {
+  try {
+    const response = await api.put(`/administration/Clients/${id}`, clientData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { getClientsFiltered, updateClientStatus } from '../services/clientService';
+import { getClientsFiltered, updateClientStatus, updateClient } from '../services/clientService';
 
 const ClientContext = createContext();
 
@@ -200,6 +200,26 @@ export const ClientProvider = ({ children }) => {
     }
   };
 
+  const activateDemo = async (client) => {
+    try {
+      const updatedClientData = {
+        ...client,
+        isTrial: false
+      };
+
+      await updateClient(client.id, updatedClientData);
+      
+      Alert.alert('Éxito', 'El cliente ha sido activado correctamente');
+
+      fetchDemos(1, activeDemoFilter, true);
+      fetchActives(1, activeActiveFilter, true);
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'No se pudo activar al cliente');
+    }
+  };
+
   const loadInitialData = async () => {
     await Promise.all([
         fetchDemos(1, activeDemoFilter, true),
@@ -229,7 +249,8 @@ export const ClientProvider = ({ children }) => {
       inactives, loadingInactives, hasMoreInactives, fetchInactives: () => fetchInactives(inactivePage + 1), refreshInactives: () => fetchInactives(1, activeInactiveFilter, true), applyInactiveFilter, activeInactiveFilter,
       
       reactivateClient,
-      suspendClient
+      suspendClient,
+      activateDemo
     }}>
       {children}
     </ClientContext.Provider>

@@ -1,23 +1,23 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SELLER_MAP } from '../../utils/constants';
-import { openWhatsApp } from '../../utils/actions'; // <--- 1. IMPORTAR LA FUNCIÓN
+import { openWhatsApp } from '../../utils/actions';
+import { useClients } from '../../context/ClientContext';
 
 const ClientCard = React.memo(({ item, isExpanded, onPress }) => {
-    // ... (Tu lógica de fechas y cálculos se mantiene igual) ...
+    const { activateDemo } = useClients();
+
     const trialEnd = new Date(item.trialEndsAt || Date.now());
     const createdAt = new Date(item.createdAt || Date.now()); 
     const now = new Date();
     
-    // ... (Cálculo de barra de progreso y demás constantes) ...
     const diffTime = trialEnd - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const daysLeft = diffDays > 0 ? diffDays : 0;
     const formattedDate = trialEnd.toLocaleDateString('es-MX');
     const formattedCreatedAt = createdAt.toLocaleDateString('es-MX');
     
-    // Progreso
     const totalDuration = trialEnd - createdAt;
     const remainingTime = trialEnd - now;
     let progressPercent = 0;
@@ -28,16 +28,30 @@ const ClientCard = React.memo(({ item, isExpanded, onPress }) => {
     const sellerIdStr = item.sellerId ? String(item.sellerId) : null;
     const sellerName = SELLER_MAP[sellerIdStr];
 
-    // --- FUNCIÓN PARA EL BOTÓN ---
     const handleContact = () => {
-        // Puedes personalizar el mensaje si quieres
         const message = `Hola ${item.name || 'Cliente'}, te contacto desde Ari Soporte respecto a tu demo.`;
         openWhatsApp(item.phoneNumber, message);
     };
 
+    const handleActivate = () => {
+        Alert.alert(
+            "Confirmar Activación",
+            "¿Estás seguro de que quieres convertir esta demo en un cliente activo?",
+            [
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                },
+                {
+                    text: "Activar",
+                    onPress: () => activateDemo(item)
+                }
+            ]
+        );
+    };
+
     return (
         <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
-            {/* ... (Todo tu renderizado de cabecera y barra de progreso sigue igual) ... */}
             <View style={styles.cardMainRow}>
                 <View style={styles.infoContainer}>
                     <Text style={styles.clientName}>{item.businessName || item.name}</Text>
@@ -80,7 +94,6 @@ const ClientCard = React.memo(({ item, isExpanded, onPress }) => {
                 </View>
 
                 <View style={styles.actionsContainer}>
-                    {/* 2. USAR LA FUNCIÓN EN EL BOTÓN */}
                     <TouchableOpacity 
                         style={[styles.actionButton, styles.btnWhatsapp]}
                         onPress={handleContact} 
@@ -89,7 +102,10 @@ const ClientCard = React.memo(({ item, isExpanded, onPress }) => {
                         <Text style={styles.actionText}>Contactar</Text>
                     </TouchableOpacity>
                     
-                    <TouchableOpacity style={[styles.actionButton, styles.btnActivate]}>
+                    <TouchableOpacity 
+                        style={[styles.actionButton, styles.btnActivate]}
+                        onPress={handleActivate}
+                    >
                         <Ionicons name="flash-outline" size={18} color="#2b5cb5" />
                         <Text style={[styles.actionText, styles.textActivate]}>Activar</Text>
                     </TouchableOpacity>
@@ -100,7 +116,6 @@ const ClientCard = React.memo(({ item, isExpanded, onPress }) => {
     );
 });
 
-// ... (Styles se mantienen igual) ...
 const styles = StyleSheet.create({
   card: { backgroundColor: 'white', borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 4 },
   cardMainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
