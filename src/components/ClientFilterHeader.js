@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  StyleSheet, Text, View, TextInput, TouchableOpacity, Modal, ScrollView 
+  StyleSheet, Text, View, TextInput, TouchableOpacity, Modal 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SELLER_OPTIONS } from '../utils/constants';
@@ -18,34 +18,31 @@ const ModalOption = ({ label, isActive, onPress, icon }) => (
 export default function ClientFilterHeader({ 
   searchQuery, 
   onSearchChange, 
-  filters,       // Objeto { sortParam, isDescending, sellerId }
-  onApplyFilter, // Función (sortParam, isDescending, sellerId)
+  filters,       
+  onApplyFilter, 
   titleSellers = "Vendedores",
   titleSort = "Ordenar"
 }) {
-  const [activeModal, setActiveModal] = useState(null); // 'sellers' | 'sort' | null
+  const [activeModal, setActiveModal] = useState(null); 
 
-  // Helpers para textos dinámicos
   const activeSellerName = filters.sellerId 
     ? SELLER_OPTIONS.find(s => s.id === filters.sellerId)?.name.split(' ')[0] 
     : titleSellers;
 
   const activeSortLabel = filters.sortParam === 'BusinessName' ? 'A-Z' : 'Por Vencer';
 
-  // Manejadores
   const handleSellerSelect = (id) => {
-    onApplyFilter(undefined, undefined, id); // Mantiene sort, cambia seller
+    onApplyFilter(undefined, undefined, id); 
     setActiveModal(null);
   };
 
   const handleSortSelect = (sortParam, isDesc) => {
-    onApplyFilter(sortParam, isDesc, undefined); // Mantiene seller, cambia sort
+    onApplyFilter(sortParam, isDesc, undefined); 
     setActiveModal(null);
   };
 
   return (
     <View>
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
         <TextInput 
@@ -62,10 +59,8 @@ export default function ClientFilterHeader({
         )}
       </View>
 
-      {/* Botones de Filtro */}
       <View style={styles.filtersRow}>
         
-        {/* Botón Vendedores */}
         <TouchableOpacity 
             style={[styles.filterButton, filters.sellerId && styles.filterButtonActive]} 
             onPress={() => setActiveModal('sellers')}
@@ -79,7 +74,6 @@ export default function ClientFilterHeader({
 
         <View style={{width: 10}} />
 
-        {/* Botón Ordenar */}
         <TouchableOpacity 
             style={[styles.filterButton, styles.filterButtonActive]} 
             onPress={() => setActiveModal('sort')}
@@ -93,7 +87,6 @@ export default function ClientFilterHeader({
 
       </View>
 
-      {/* MODAL: VENDEDORES */}
       <Modal visible={activeModal === 'sellers'} transparent animationType="fade" onRequestClose={() => setActiveModal(null)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setActiveModal(null)}>
             <View style={styles.modalContent}>
@@ -119,7 +112,6 @@ export default function ClientFilterHeader({
         </TouchableOpacity>
       </Modal>
 
-      {/* MODAL: ORDENAR */}
       <Modal visible={activeModal === 'sort'} transparent animationType="fade" onRequestClose={() => setActiveModal(null)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setActiveModal(null)}>
             <View style={styles.modalContent}>
@@ -130,7 +122,7 @@ export default function ClientFilterHeader({
                     label="Por Vencer / Recientes" 
                     icon="time-outline"
                     isActive={filters.sortParam !== 'BusinessName'} 
-                    onPress={() => handleSortSelect('TrialEndsAt', false)} // Ojo: Aquí podrías parametrizar el default sort si cambia entre pantallas
+                    onPress={() => handleSortSelect('TrialEndsAt', false)} 
                 />
                 <ModalOption 
                     label="Alfabético (A-Z)" 
@@ -146,11 +138,22 @@ export default function ClientFilterHeader({
 }
 
 const styles = StyleSheet.create({
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', marginHorizontal: 20, paddingHorizontal: 15, paddingVertical: 12, borderRadius: 12, marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  searchContainer: { 
+    flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', 
+    marginHorizontal: 20, paddingHorizontal: 15, paddingVertical: 12, 
+    borderRadius: 12, marginBottom: 15, 
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 
+  },
   searchIcon: { marginRight: 10 },
   searchInput: { flex: 1, fontSize: 16, color: '#374151' },
   filtersRow: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 15 },
-  filterButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 2, elevation: 1 },
+  filterButton: { 
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
+    backgroundColor: 'white', paddingVertical: 12, borderRadius: 12, borderWidth: 1, 
+    borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.03, shadowRadius: 2, elevation: 1 
+  },
   filterButtonActive: { borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' },
   filterButtonText: { fontSize: 14, fontWeight: '600', color: '#4B5563', marginLeft: 8 },
   filterButtonTextActive: { color: '#2b5cb5' },
