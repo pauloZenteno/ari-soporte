@@ -10,6 +10,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import ClientsScreen from './src/screens/ClientsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import CotizadorScreen from './src/screens/CotizadorScreen';
+import QuoteCreateScreen from './src/screens/QuoteCreateScreen';
 import Header from './src/components/Header';
 import BottomNav from './src/components/BottomNav';
 
@@ -79,6 +80,7 @@ export default function App() {
         >
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="QuoteCreate" component={QuoteCreateScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </ClientProvider>

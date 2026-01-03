@@ -1,17 +1,20 @@
-import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useClients } from '../context/ClientContext';
 import { Ionicons } from '@expo/vector-icons';
 import ClientFilterHeader from '../components/ClientFilterHeader';
 import Header from '../components/Header';
 import QuoteCard from '../components/cards/QuoteCard';
 import { SELLER_OPTIONS } from '../utils/constants';
+import { getQuoteById, downloadQuotePdf } from '../services/quoteService';
 
 const CotizadorScreen = ({ navigation }) => {
   const { quotes, loadingQuotes, hasMoreQuotes, fetchQuotes, refreshQuotes } = useClients();
 
   const [headerHeight, setHeaderHeight] = useState(0);      
   const [controlsHeight, setControlsHeight] = useState(0); 
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   
@@ -30,35 +33,52 @@ const CotizadorScreen = ({ navigation }) => {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState(''); 
   const [activeFilters, setActiveFilters] = useState({ 
     sortParam: 'TrialEndsAt', isDescending: false, sellerId: null 
   });
 
-  useEffect(() => { refreshQuotes(); }, []);
+  useFocusEffect(
+    useCallback(() => {
+      refreshQuotes();
+    }, [])
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 400); 
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const filteredData = useMemo(() => {
     let data = [...quotes];
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    
+    if (debouncedQuery) {
+      const query = debouncedQuery.toLowerCase();
       data = data.filter(item => 
         (item.clientName || '').toLowerCase().includes(query) ||
         (item.companyName || '').toLowerCase().includes(query) ||
         (item.folio || '').toLowerCase().includes(query)
       );
     }
+    
     if (activeFilters.sellerId) {
       const sellerOption = SELLER_OPTIONS.find(s => s.id === activeFilters.sellerId);
       if (sellerOption) {
         data = data.filter(item => (item.employeeName || '').toLowerCase().includes(sellerOption.name.toLowerCase()));
       }
     }
+    
     if (activeFilters.sortParam === 'BusinessName') {
       data.sort((a, b) => (a.companyName || '').localeCompare(b.companyName || ''));
     } else {
       data.sort((a, b) => new Date(b.created) - new Date(a.created));
     }
+    
     return data;
-  }, [quotes, searchQuery, activeFilters]);
+  }, [quotes, debouncedQuery, activeFilters]);
 
   const handleApplyFilter = (sortParam, isDescending, sellerId) => {
     setActiveFilters(prev => ({
@@ -70,18 +90,40 @@ const CotizadorScreen = ({ navigation }) => {
   };
 
   const formatCurrency = (amount) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
-  const handleCreate = () => Alert.alert("Crear", "Nueva cotización");
-  const handleDownload = (id) => Alert.alert("Descargar", `ID: ${id}`);
-  const handleEdit = (id) => Alert.alert("Editar", `ID: ${id}`);
+  
+  const handleCreate = () => {
+    navigation.navigate('QuoteCreate');
+  };
+
+  const handleEdit = (id) => {
+    navigation.navigate('QuoteCreate', { id });
+  };
+
+  const handleDownload = async (id) => {
+    if (downloadingId) return; 
+    setDownloadingId(id);
+    
+    try {
+      Alert.alert("Generando PDF", "Descargando cotización, por favor espere...");
+      const fullQuoteData = await getQuoteById(id);
+      await downloadQuotePdf(fullQuoteData);
+    } catch (error) {
+      Alert.alert("Error", "No se pudo descargar el archivo.");
+      console.error(error);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const renderItem = useCallback(({ item }) => (
     <QuoteCard 
       item={item} 
       onEdit={handleEdit} 
       onDownload={handleDownload} 
-      formatCurrency={formatCurrency} 
+      formatCurrency={formatCurrency}
+      isDownloading={downloadingId === item.id} 
     />
-  ), []);
+  ), [downloadingId]);
 
   return (
     <View style={styles.container}>
@@ -106,18 +148,16 @@ const CotizadorScreen = ({ navigation }) => {
           <View onLayout={(e) => setControlsHeight(e.nativeEvent.layout.height)}>
               <View style={styles.controlsContent}>
                   
-                  {/* 1. FILTROS PRIMERO */}
                   <View style={{ marginBottom: 10 }}>
                     <ClientFilterHeader 
                         searchQuery={searchQuery}
-                        onSearchChange={setSearchQuery}
+                        onSearchChange={setSearchQuery} 
                         filters={activeFilters}
                         onApplyFilter={handleApplyFilter}
                         titleSellers="Vendedores" 
                     />
                   </View>
 
-                  {/* 2. BOTÓN CREAR DESPUÉS */}
                   <TouchableOpacity style={styles.createButton} onPress={handleCreate} activeOpacity={0.8}>
                       <View style={styles.createIconBg}>
                           <Ionicons name="add" size={20} color="white" />
@@ -161,7 +201,7 @@ const CotizadorScreen = ({ navigation }) => {
           <View style={styles.center}>
               <Ionicons name="document-text-outline" size={48} color="#E5E7EB" />
               <Text style={styles.emptyText}>
-                  {searchQuery ? 'No hay resultados.' : 'No hay cotizaciones.'}
+                  {debouncedQuery ? 'No hay resultados.' : 'No hay cotizaciones.'}
               </Text>
           </View>
         }
@@ -199,25 +239,21 @@ const styles = StyleSheet.create({
   controlsContent: {
     paddingHorizontal: 0, 
     paddingTop: 15, 
-    paddingBottom: 10, // Un poco más de espacio abajo
+    paddingBottom: 10, 
   },
 
-  // ESTILOS DEL BOTÓN ACTUALIZADOS
   createButton: {
     flexDirection: 'row',
-    // Fondo verde menta muy suave (Tinted)
     backgroundColor: '#ecfdf5', 
-    // Padding vertical reducido para hacerlo más delgado
     paddingVertical: 10, 
     paddingHorizontal: 20,
-    borderRadius: 14, // Bordes un poco menos redondeados para que se vea fit
+    borderRadius: 14, 
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#d1fae5', // Borde menta sutil
+    borderColor: '#d1fae5', 
     marginBottom: 5,
     marginHorizontal: 20, 
-    // Sombras sutiles
     shadowColor: '#15c899',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -225,16 +261,16 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   createIconBg: {
-    backgroundColor: '#15c899', // El verde solicitado
+    backgroundColor: '#15c899', 
     borderRadius: 8,
-    width: 28, // Icono un poco más pequeño
+    width: 28, 
     height: 28,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10
   },
   createButtonText: {
-    color: '#15c899', // Texto verde solicitado
+    color: '#15c899', 
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3
