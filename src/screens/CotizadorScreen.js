@@ -1,13 +1,12 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, Alert, ActivityIndicator, Dimensions, Platform } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, StyleSheet, Animated, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useClients } from '../context/ClientContext';
 import { Ionicons } from '@expo/vector-icons';
 import ClientFilterHeader from '../components/ClientFilterHeader';
-import Header from '../components/Header';
 import QuoteCard from '../components/cards/QuoteCard';
 import { SELLER_OPTIONS } from '../utils/constants';
 import { getQuoteById, downloadQuotePdf } from '../services/quoteService';
+import { COLORS } from '../utils/colors';
 
 const CotizadorScreen = ({ navigation }) => {
   const { quotes, loadingQuotes, hasMoreQuotes, fetchQuotes, refreshQuotes } = useClients();
@@ -16,7 +15,12 @@ const CotizadorScreen = ({ navigation }) => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const [headerHeight, setHeaderHeight] = useState(0);      
+  useEffect(() => {
+    if (quotes.length === 0) {
+        fetchQuotes();
+    }
+  }, []);
+
   const [controlsHeight, setControlsHeight] = useState(0); 
   
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -54,13 +58,6 @@ const CotizadorScreen = ({ navigation }) => {
     sortParam: 'CreatedAt', isDescending: true, sellerId: null 
   });
 
-  // --- CORRECCIÓN DEL BUCLE INFINITO ---
-  useFocusEffect(
-    useCallback(() => {
-      refreshQuotes();
-    }, []) // <--- Dependencias vacías: Solo ejecuta al enfocar la pantalla
-  );
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
@@ -90,12 +87,10 @@ const CotizadorScreen = ({ navigation }) => {
     if (activeFilters.sortParam === 'BusinessName') {
       data.sort((a, b) => (a.companyName || '').localeCompare(b.companyName || ''));
     } else {
-      // --- CORRECCIÓN DE FECHA ---
-      // Usamos createdAt o created, y manejamos fechas nulas para que no fallen
       data.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.created || 0);
           const dateB = new Date(b.createdAt || b.created || 0);
-          return dateB - dateA; // Más reciente primero
+          return dateB - dateA; 
       });
     }
     
@@ -149,7 +144,7 @@ const CotizadorScreen = ({ navigation }) => {
     if (loadingQuotes && quotes.length > 0) {
         return (
             <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#2b5cb5" />
+                <ActivityIndicator size="small" color={COLORS.primary} />
                 <Text style={styles.footerText}>Cargando más...</Text>
             </View>
         );
@@ -163,7 +158,7 @@ const CotizadorScreen = ({ navigation }) => {
                 activeOpacity={0.7}
             >
                 <Text style={styles.loadMoreText}>Cargar más cotizaciones</Text>
-                <Ionicons name="chevron-down-circle-outline" size={18} color="#2b5cb5" style={{ marginLeft: 8 }} />
+                <Ionicons name="chevron-down-circle-outline" size={18} color={COLORS.primary} style={{ marginLeft: 8 }} />
             </TouchableOpacity>
         );
     }
@@ -171,23 +166,16 @@ const CotizadorScreen = ({ navigation }) => {
     return <View style={{ height: 40 }} />;
   };
 
-  const layoutReady = headerHeight > 0 && controlsHeight > 0;
+  const layoutReady = controlsHeight > 0;
 
   return (
     <View style={styles.container}>
       
-      <View 
-        style={styles.fixedHeaderWrapper} 
-        onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
-      >
-          <Header navigation={navigation} />
-      </View>
-
       <Animated.View 
         style={[
             styles.collapsibleWrapper, 
             { 
-                top: headerHeight, 
+                top: 0, 
                 transform: [{ translateY }],
                 opacity: layoutReady ? 1 : 0 
             }
@@ -214,7 +202,7 @@ const CotizadorScreen = ({ navigation }) => {
             ListFooterComponent={renderFooter}
             
             contentContainerStyle={{ 
-                paddingTop: headerHeight + controlsHeight + 10, 
+                paddingTop: controlsHeight + 10, 
                 paddingBottom: 120, 
                 paddingHorizontal: 20 
             }}
@@ -233,7 +221,7 @@ const CotizadorScreen = ({ navigation }) => {
 
             ListEmptyComponent={
                 <View style={styles.center}>
-                    <Ionicons name="document-text-outline" size={48} color="#E5E7EB" />
+                    <Ionicons name="document-text-outline" size={48} color={COLORS.border} />
                     <Text style={styles.emptyText}>
                         {debouncedQuery ? 'No hay resultados.' : 'No hay cotizaciones.'}
                     </Text>
@@ -242,7 +230,7 @@ const CotizadorScreen = ({ navigation }) => {
         />
       ) : (
          <View style={styles.centerLoading}>
-            <ActivityIndicator size="large" color="#2b5cb5" />
+            <ActivityIndicator size="large" color={COLORS.primary} />
          </View>
       )}
 
@@ -251,22 +239,14 @@ const CotizadorScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: COLORS.background },
   
-  fixedHeaderWrapper: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    zIndex: 100, 
-    elevation: 10,
-    backgroundColor: '#F9FAFB', 
-  },
-
   collapsibleWrapper: {
     position: 'absolute',
     left: 0, right: 0,
     zIndex: 50, 
     elevation: 5,
-    backgroundColor: '#F9FAFB', 
+    backgroundColor: COLORS.background, 
   },
   
   controlsContent: {
@@ -313,12 +293,12 @@ const styles = StyleSheet.create({
   },
 
   center: { marginTop: 100, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { marginTop: 10, color: '#9CA3AF', fontSize: 16 },
+  emptyText: { marginTop: 10, color: COLORS.textSecondary, fontSize: 16 },
 
   centerLoading: {
       position: 'absolute',
       left: 0, right: 0, top: 0, bottom: 0,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: COLORS.background,
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 999
@@ -328,21 +308,21 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'white',
+      backgroundColor: COLORS.white,
       paddingVertical: 12,
       marginVertical: 20,
       marginHorizontal: 40,
       borderRadius: 25,
       borderWidth: 1,
-      borderColor: '#2b5cb5',
-      shadowColor: '#2b5cb5',
+      borderColor: COLORS.primary,
+      shadowColor: COLORS.primary,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 2
   },
   loadMoreText: {
-      color: '#2b5cb5',
+      color: COLORS.primary,
       fontWeight: '700',
       fontSize: 14
   },
@@ -354,7 +334,7 @@ const styles = StyleSheet.create({
       gap: 10
   },
   footerText: {
-      color: '#6B7280',
+      color: COLORS.textSecondary,
       fontSize: 13,
       fontWeight: '500'
   }

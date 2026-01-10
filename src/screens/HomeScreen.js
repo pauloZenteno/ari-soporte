@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
 import ClientFilterHeader from '../components/ClientFilterHeader';
 import ClientCard from '../components/cards/ClientCard';
-import Header from '../components/Header'; // Importamos tu Header personalizado
+import { COLORS } from '../utils/colors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -16,7 +16,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function HomeScreen() { 
   const navigation = useNavigation();
 
-  // 1. Ocultar Header nativo para usar el nuestro con zIndex correcto
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
@@ -24,15 +23,18 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   
-  // --- VARIABLES DE ANIMACIÓN Y MEDIDAS ---
-  const [headerHeight, setHeaderHeight] = useState(0);      
   const [controlsHeight, setControlsHeight] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current; 
   
-  // Contexto de datos
+  useEffect(() => {
+    const listenerId = scrollY.addListener(() => {});
+    return () => {
+      scrollY.removeListener(listenerId);
+    };
+  }, []);
+
   const { demos, loadingDemos, fetchDemos, refreshDemos, applyDemoFilter, activeDemoFilter, hasMoreDemos } = useClients();
 
-  // --- LÓGICA DE COLAPSO (Sticky Header) ---
   const { translateY, onScroll } = useMemo(() => {
     const heightToHide = controlsHeight || 1; 
 
@@ -68,28 +70,18 @@ export default function HomeScreen() {
     (item.businessName || item.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Renderizado condicional del loader inicial para evitar saltos
-  const isReady = headerHeight > 0 && controlsHeight > 0;
+  const isReady = controlsHeight > 0;
 
   return (
     <View style={styles.container}>
       
-      {/* 1. SECCIÓN FIJA (Header Global) */}
-      <View 
-        style={styles.fixedHeaderWrapper}
-        onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
-      >
-        <Header navigation={navigation} />
-      </View>
-
-      {/* 2. SECCIÓN COLAPSABLE (Filtros) */}
       <Animated.View 
         style={[
             styles.collapsibleWrapper, 
             { 
-                top: headerHeight, // Se coloca justo debajo del Header
+                top: 0, 
                 transform: [{ translateY }],
-                opacity: isReady ? 1 : 0 // Invisible hasta calcular medidas
+                opacity: isReady ? 1 : 0 
             }
         ]}
         onLayout={(e) => setControlsHeight(e.nativeEvent.layout.height)}
@@ -103,7 +95,6 @@ export default function HomeScreen() {
         />
       </Animated.View>
 
-      {/* 3. LISTA DE DEMOS */}
       {isReady ? (
           <Animated.FlatList
             data={dataToRender}
@@ -116,20 +107,17 @@ export default function HomeScreen() {
                 />
             )}
             
-            // Padding dinámico: Header + Filtros + Espacio extra
             contentContainerStyle={{
-                paddingTop: headerHeight + controlsHeight + 10,
+                paddingTop: controlsHeight + 10,
                 paddingBottom: 120,
                 paddingHorizontal: 20
             }}
             
             showsVerticalScrollIndicator={false}
             
-            // Conectamos el scroll a la animación
             onScroll={onScroll}
             scrollEventThrottle={16}
 
-            // Optimizaciones
             initialNumToRender={8}
             maxToRenderPerBatch={5}
             windowSize={5}
@@ -142,22 +130,21 @@ export default function HomeScreen() {
             
             ListFooterComponent={ 
                 loadingDemos && demos.length > 0 && hasMoreDemos 
-                ? <View style={{ padding: 20 }}><ActivityIndicator size="small" color="#2b5cb5" /></View> 
+                ? <View style={{ padding: 20 }}><ActivityIndicator size="small" color={COLORS.primary} /></View> 
                 : null 
             }
             ListEmptyComponent={ 
                 !loadingDemos && (
                     <View style={styles.emptyContainer}>
-                        <Ionicons name="folder-open-outline" size={48} color="#E5E7EB" />
+                        <Ionicons name="folder-open-outline" size={48} color={COLORS.border} />
                         <Text style={styles.emptyText}>No hay demos disponibles</Text>
                     </View>
                 ) 
             }
           />
       ) : (
-          // Loader de pantalla completa mientras calculamos layout
           <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#2b5cb5" />
+              <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
       )}
     </View>
@@ -165,34 +152,23 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F5' },
+  container: { flex: 1, backgroundColor: COLORS.background },
   
-  // Wrapper Fijo: Header
-  fixedHeaderWrapper: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    zIndex: 100,
-    elevation: 10,
-    backgroundColor: '#F0F2F5', // Fondo sólido para tapar scroll
-    paddingBottom: 5,
-    paddingTop: Platform.OS === 'android' ? 0 : 0 
-  },
-
-  // Wrapper Colapsable: Filtros
   collapsibleWrapper: {
     position: 'absolute',
     left: 0, right: 0,
     zIndex: 50,
     elevation: 5,
-    backgroundColor: '#F0F2F5',
+    backgroundColor: COLORS.background,
+    paddingTop: 10,
   },
 
   emptyContainer: { alignItems: 'center', marginTop: 80 },
-  emptyText: { marginTop: 10, color: '#9CA3AF', fontSize: 15 },
+  emptyText: { marginTop: 10, color: COLORS.textSecondary, fontSize: 15 },
   
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#F0F2F5',
+    backgroundColor: COLORS.background,
     zIndex: 999,
     justifyContent: 'center',
     alignItems: 'center'

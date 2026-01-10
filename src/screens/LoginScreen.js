@@ -1,45 +1,83 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, Text, View, TextInput, TouchableOpacity, 
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image, UIManager
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image, Animated 
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { login, setSession, setUserInfo, getUserInfo, clearSession, checkBiometricSupport, authenticateWithBiometrics } from '../services/authService';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useBiometricAuth } from '../hooks/useBiometricAuth';
+import { 
+  login, setSession, setUserInfo, getUserInfo, clearFullStorage, 
+  storeUserCredentials, getUserCredentials 
+} from '../services/authService';
 import { useClients } from '../context/ClientContext';
-import BackgroundSvg from '../assets/login_background.svg'; 
+import { useAuth } from '../context/AuthContext';
 
-// Esta línea suele causar warnings en la nueva arquitectura de Android, la comentamos para limpiar logs.
-// if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-//   UIManager.setLayoutAnimationEnabledExperimental(true);
-// }
-
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   
   const [savedUser, setSavedUser] = useState(null);
-  const [hasBiometrics, setHasBiometrics] = useState(false);
+  
+  const [isCheckingUser, setIsCheckingUser] = useState(true);
+  
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  const { isBiometricSupported, biometricType, isChecking: isCheckingBiometrics, authenticate } = useBiometricAuth();
   const { loadInitialData, setUserProfile } = useClients();
+  const { signIn } = useAuth();
 
   useEffect(() => {
-    checkUserSession();
+    checkSavedUser();
   }, []);
 
-  const checkUserSession = async () => {
+  const checkSavedUser = async () => {
     try {
-      const bioSupported = await checkBiometricSupport();
-      setHasBiometrics(bioSupported);
-
       const user = await getUserInfo();
       if (user && user.firstName) {
         setSavedUser(user);
       }
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsCheckingUser(false);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500, 
+        useNativeDriver: true,
+      }).start();
     }
+  };
+
+  const performLoginSuccess = async (data, currentPassword) => {
+    const { accessToken, refreshToken, id, firstName, lastName, jobPosition } = data;
+
+    await setSession(accessToken, refreshToken);
+    
+    const userToSave = username || savedUser?.username;
+
+    if (userToSave && currentPassword) {
+      await storeUserCredentials(userToSave, currentPassword);
+    }
+
+    const userData = { 
+      id, 
+      firstName, 
+      lastName, 
+      jobPosition, 
+      username: userToSave
+    };
+
+    setUserProfile(userData);
+
+    if (rememberMe || savedUser) {
+      await setUserInfo(userData);
+    }
+
+    loadInitialData();
+    signIn();
   };
 
   const handleLogin = async () => {
@@ -52,38 +90,15 @@ export default function LoginScreen({ navigation }) {
 
     try {
       const data = await login(username, password);
-
-      const { accessToken, refreshToken, id, firstName, lastName, jobPosition } = data;
-
-      await setSession(accessToken, refreshToken);
-      
-      const userData = { 
-        id, 
-        firstName, 
-        lastName, 
-        jobPosition, 
-        username: username 
-      };
-
-      setUserProfile(userData);
-
-      if (rememberMe) {
-        await setUserInfo(userData);
-      }
-
-      loadInitialData();
-      navigation.replace('MainTabs');
-
+      await performLoginSuccess(data, password);
     } catch (error) {
       console.error("Login Error:", error);
-      
-      // VALIDACIÓN ESPECÍFICA DEL ERROR 400
       if (error.response && error.response.status === 400) {
-        Alert.alert('Credenciales Incorrectas', 'El usuario o la contraseña no coinciden. Verifícalos e intenta de nuevo.');
+        Alert.alert('Credenciales Incorrectas', 'El usuario o la contraseña no coinciden.');
       } else if (error.message && error.message.includes('Network Error')) {
-        Alert.alert('Error de Conexión', 'No se pudo conectar con el servidor. Revisa tu internet.');
+        Alert.alert('Error de Conexión', 'No se pudo conectar con el servidor.');
       } else {
-        Alert.alert('Error', 'Ocurrió un problema inesperado. Inténtalo más tarde.');
+        Alert.alert('Error', 'Ocurrió un problema inesperado.');
       }
     } finally {
       setIsLoading(false);
@@ -97,10 +112,7 @@ export default function LoginScreen({ navigation }) {
     }
 
     if (!savedUser || !savedUser.username) {
-      Alert.alert(
-        'Actualización requerida', 
-        'Detectamos una sesión antigua. Por favor presiona "Cambiar usuario" e inicia sesión nuevamente para actualizar tus datos.'
-      );
+      Alert.alert('Actualización requerida', 'Por favor inicia sesión manualmente.');
       return;
     }
 
@@ -108,32 +120,12 @@ export default function LoginScreen({ navigation }) {
 
     try {
       const data = await login(savedUser.username, password);
-      const { accessToken, refreshToken, id, firstName, lastName, jobPosition } = data;
-
-      await setSession(accessToken, refreshToken);
-      
-      const userData = { 
-        id, 
-        firstName, 
-        lastName, 
-        jobPosition, 
-        username: savedUser.username 
-      };
-
-      setUserProfile(userData);
-      await setUserInfo(userData);
-
-      loadInitialData();
-      navigation.replace('MainTabs');
-
+      await performLoginSuccess(data, password);
     } catch (error) {
-      console.error("Quick Login Error:", error);
-
-      // VALIDACIÓN ESPECÍFICA DEL ERROR 400 EN LOGIN RÁPIDO
       if (error.response && error.response.status === 400) {
         Alert.alert('Contraseña Incorrecta', 'La contraseña ingresada no es válida.');
       } else {
-        Alert.alert('Error', 'No se pudo validar la sesión. Intenta iniciar sesión manualmente.');
+        Alert.alert('Error', 'No se pudo validar la sesión.');
       }
     } finally {
       setIsLoading(false);
@@ -141,66 +133,79 @@ export default function LoginScreen({ navigation }) {
   };
 
   const handleBiometricLogin = async () => {
-    const success = await authenticateWithBiometrics();
+    const success = await authenticate();
+    
     if (success) {
       setIsLoading(true);
-      
-      if (savedUser) {
-        setUserProfile(savedUser);
-      }
+      try {
+        const { username: storedUser, password: storedPassword } = await getUserCredentials();
 
-      loadInitialData();
-      setTimeout(() => {
-        navigation.replace('MainTabs');
-      }, 500);
+        if (storedUser && storedPassword) {
+            const data = await login(storedUser, storedPassword);
+            await performLoginSuccess(data, storedPassword);
+        } else {
+            setIsLoading(false);
+            Alert.alert('Aviso', 'Por seguridad, ingresa tu contraseña esta vez para habilitar el acceso biométrico futuro.');
+        }
+      } catch (error) {
+        setIsLoading(false);
+        console.error("Biometric Login Error:", error);
+        Alert.alert('Error', 'Hubo un problema al validar tus credenciales guardadas. Ingresa tu contraseña manualmente.');
+      }
     }
   };
 
   const handleSwitchAccount = async () => {
-    await clearSession();
+    await clearFullStorage(); 
     setSavedUser(null);
     setUsername('');
     setPassword('');
   };
 
-  if (savedUser) {
-    return (
-      <View style={styles.mainContainer}>
-        <View style={styles.backgroundContainer}>
-          <BackgroundSvg width="100%" height="100%" preserveAspectRatio="none" />
-        </View>
+  const renderBiometricIcon = () => {
+    if (biometricType === 'FACE') {
+      return (
+         <Image 
+           source={require('../assets/faceid_icon.png')} 
+           style={{ width: 50, height: 50, tintColor: '#2b5cb5', resizeMode: 'contain' }} 
+         />
+      );
+    }
+    return <Ionicons name="finger-print" size={50} color="#2b5cb5" />;
+  };
 
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.verticalContainer}
-        >
-          
+  if (isCheckingUser) {
+    return (
+        <View style={styles.mainContainer}>
+            <View style={styles.backgroundContainer}>
+                <Image 
+                  source={require('../assets/login_background.png')}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+            </View>
+        </View>
+    );
+  }
+
+  const content = savedUser ? (
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.verticalContainer}>
           <View style={styles.topSection}>
-            <Image 
-              source={require('../assets/logo_arisoporte.png')}
-              style={styles.logoVertical} 
-            />
+            <Image source={require('../assets/logo_arisoporte.png')} style={styles.logoVertical} />
           </View>
 
           <View style={styles.middleSection}>
             <Text style={styles.greetingLabel}>Hola de nuevo,</Text>
-            <Text style={styles.greetingName}>
-              {savedUser.firstName || savedUser.name || 'Usuario'}
-            </Text>
+            <Text style={styles.greetingName}>{savedUser.firstName || savedUser.name || 'Usuario'}</Text>
           </View>
 
           <View style={styles.bottomSection}>
-            
-            {hasBiometrics && (
-              <TouchableOpacity 
-                style={styles.biometricIconBtn} 
-                onPress={handleBiometricLogin}
-                disabled={isLoading}
-              >
+            {!isCheckingBiometrics && isBiometricSupported && (
+              <TouchableOpacity style={styles.biometricIconBtn} onPress={handleBiometricLogin} disabled={isLoading}>
                 {isLoading && !password ? (
                   <ActivityIndicator size="large" color="#2b5cb5" />
                 ) : (
-                  <Ionicons name="finger-print" size={50} color="#2b5cb5" />
+                  renderBiometricIcon()
                 )}
               </TouchableOpacity>
             )}
@@ -214,54 +219,28 @@ export default function LoginScreen({ navigation }) {
                   placeholderTextColor="#9CA3AF"
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry
+                  secureTextEntry={!isPasswordVisible}
                 />
+                <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={{ padding: 10 }}>
+                  <Ionicons name={isPasswordVisible ? "eye-off" : "eye"} size={20} color="#9CA3AF" />
+                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity 
-                style={styles.quickLoginBtn}
-                onPress={handleQuickLogin}
-                disabled={isLoading}
-              >
-                {isLoading && password ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Ionicons name="arrow-forward" size={24} color="white" />
-                )}
+              <TouchableOpacity style={styles.quickLoginBtn} onPress={handleQuickLogin} disabled={isLoading}>
+                {isLoading && password ? <ActivityIndicator size="small" color="white" /> : <Ionicons name="arrow-forward" size={24} color="white" />}
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity 
-              style={styles.switchUserLink} 
-              onPress={handleSwitchAccount}
-            >
+            <TouchableOpacity style={styles.switchUserLink} onPress={handleSwitchAccount}>
               <Text style={styles.switchUserText}>Cambiar usuario</Text>
             </TouchableOpacity>
-
           </View>
-
-        </KeyboardAvoidingView>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.mainContainer}>
-      <View style={styles.backgroundContainer}>
-        <BackgroundSvg width="100%" height="100%" preserveAspectRatio="none" />
-      </View>
-
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
-      >
+    </KeyboardAvoidingView>
+  ) : (
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
         <View style={styles.contentContainer}>
-          
           <View style={styles.logoContainer}>
-            <Image 
-              source={require('../assets/logo_arisoporte.png')}
-              style={styles.logoImage} 
-            />
+            <Image source={require('../assets/logo_arisoporte.png')} style={styles.logoImage} />
           </View>
 
           <View style={styles.inputContainer}>
@@ -273,44 +252,48 @@ export default function LoginScreen({ navigation }) {
               onChangeText={setUsername}
               autoCapitalize="none"
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Contraseña"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInputInternal}
+                placeholder="Contraseña"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!isPasswordVisible}
+              />
+              <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
+                <Ionicons name={isPasswordVisible ? "eye-off" : "eye"} size={24} color="#999" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.optionsRow}>
-            <TouchableOpacity 
-              style={styles.checkboxContainer} 
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <Ionicons 
-                name={rememberMe ? "checkbox" : "square-outline"} 
-                size={20} 
-                color="white" 
-              />
+            <TouchableOpacity style={styles.checkboxContainer} onPress={() => setRememberMe(!rememberMe)}>
+              <Ionicons name={rememberMe ? "checkbox" : "square-outline"} size={20} color="white" />
               <Text style={styles.checkboxText}>Recordarme</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.loginButtonText}>INICIAR SESIÓN</Text>
-            )}
+          <TouchableOpacity style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} onPress={handleLogin} disabled={isLoading}>
+            {isLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.loginButtonText}>INICIAR SESIÓN</Text>}
           </TouchableOpacity>
-
         </View>
-      </KeyboardAvoidingView>
+    </KeyboardAvoidingView>
+  );
+
+  return (
+    <View style={styles.mainContainer}>
+      <View style={styles.backgroundContainer}>
+        <Image 
+            source={require('../assets/login_background.png')}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+        />
+      </View>
+      
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        {content}
+      </Animated.View>
     </View>
   );
 }
@@ -320,136 +303,30 @@ const styles = StyleSheet.create({
   backgroundContainer: { ...StyleSheet.absoluteFillObject, zIndex: -1 },
   container: { flex: 1 },
   contentContainer: { flex: 1, justifyContent: 'center', paddingHorizontal: 30 },
-  
   logoContainer: { alignItems: 'center', marginBottom: 40 },
   logoImage: { width: 150, height: 150, resizeMode: 'contain' },
   inputContainer: { marginBottom: 20 },
-  input: {
-    backgroundColor: 'white', borderRadius: 12, paddingVertical: 15, paddingHorizontal: 20,
-    fontSize: 16, marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
-  },
+  input: { backgroundColor: 'white', borderRadius: 12, paddingVertical: 15, paddingHorizontal: 20, fontSize: 16, marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 12, paddingHorizontal: 20, marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  passwordInputInternal: { flex: 1, paddingVertical: 15, fontSize: 16 },
   optionsRow: { flexDirection: 'row', marginBottom: 40 },
   checkboxContainer: { flexDirection: 'row', alignItems: 'center' },
   checkboxText: { color: 'white', marginLeft: 8 },
-  loginButton: {
-    backgroundColor: '#6FCF97', borderRadius: 30, paddingVertical: 18, alignItems: 'center',
-    marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 4, elevation: 5,
-  },
+  loginButton: { backgroundColor: '#6FCF97', borderRadius: 30, paddingVertical: 18, alignItems: 'center', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5 },
   loginButtonDisabled: { backgroundColor: '#a5d6b9' },
   loginButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16, letterSpacing: 1 },
-
-  verticalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 30,
-  },
-  
-  topSection: {
-    marginBottom: 10, 
-    alignItems: 'center',
-    width: '100%',
-  },
-  logoVertical: {
-    width: 280,  
-    height: 180, 
-    resizeMode: 'contain',
-  },
-
-  middleSection: {
-    alignItems: 'center',
-    marginBottom: 30, 
-  },
-  greetingLabel: {
-    fontSize: 20,
-    color: 'white',
-    fontWeight: '300',
-    marginBottom: 5,
-  },
-  greetingName: {
-    fontSize: 34,
-    color: 'white',
-    fontWeight: '800',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 3,
-  },
-
-  bottomSection: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  
-  biometricIconBtn: {
-    backgroundColor: 'white',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 25, 
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-
-  quickLoginContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    width: '100%',
-    maxWidth: 320,
-  },
-  passwordInputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 15,
-    marginRight: 10,
-    height: 55,
-    paddingHorizontal: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  quickPasswordInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 10,
-    fontSize: 16,
-    color: '#374151',
-  },
-  quickLoginBtn: {
-    backgroundColor: '#6FCF97',
-    width: 55,
-    height: 55,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-
-  switchUserLink: {
-    padding: 10,
-    marginTop: 5,
-  },
-  switchUserText: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-    opacity: 0.9,
-  },
+  verticalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 },
+  topSection: { marginBottom: 10, alignItems: 'center', width: '100%' },
+  logoVertical: { width: 280, height: 180, resizeMode: 'contain' },
+  middleSection: { alignItems: 'center', marginBottom: 30 },
+  greetingLabel: { fontSize: 20, color: 'white', fontWeight: '300', marginBottom: 5 },
+  greetingName: { fontSize: 34, color: 'white', fontWeight: '800', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.15)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 3 },
+  bottomSection: { width: '100%', alignItems: 'center' },
+  biometricIconBtn: { backgroundColor: 'white', width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 25, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
+  quickLoginContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, width: '100%', maxWidth: 320 },
+  passwordInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 15, marginRight: 10, height: 55, paddingHorizontal: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  quickPasswordInput: { flex: 1, height: '100%', paddingHorizontal: 10, fontSize: 16, color: '#374151' },
+  quickLoginBtn: { backgroundColor: '#6FCF97', width: 55, height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
+  switchUserLink: { padding: 10, marginTop: 5 },
+  switchUserText: { color: 'white', fontSize: 15, fontWeight: '600', textDecorationLine: 'underline', opacity: 0.9 },
 });

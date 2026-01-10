@@ -2,11 +2,13 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { logout } from '../services/authService';
 import { useClients } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
+import { COLORS } from '../utils/colors';
 
-export default function SettingsScreen({ navigation }) {
+export default function SettingsScreen() {
   const { userProfile } = useClients();
+  const { signOut } = useAuth();
 
   const getInitials = () => {
     if (!userProfile) return '';
@@ -24,16 +26,8 @@ export default function SettingsScreen({ navigation }) {
         { 
           text: "Salir", 
           style: "destructive",
-          onPress: async () => {
-            try {
-              await logout();
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
-            } catch (error) {
-              navigation.replace('Login');
-            }
+          onPress: () => {
+            signOut(); 
           }
         }
       ]
@@ -68,7 +62,7 @@ export default function SettingsScreen({ navigation }) {
             
             <TouchableOpacity style={styles.menuItem} onPress={handleNotifications} activeOpacity={0.7}>
                 <View style={[styles.menuIconBox, { backgroundColor: '#EFF6FF' }]}>
-                    <Ionicons name="notifications-outline" size={20} color="#2b5cb5" />
+                    <Ionicons name="notifications-outline" size={20} color={COLORS.primary} />
                 </View>
                 <Text style={styles.menuText}>Notificaciones</Text>
                 <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
@@ -78,9 +72,9 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity style={styles.menuItem} onPress={handleLogout} activeOpacity={0.7}>
                 <View style={[styles.menuIconBox, { backgroundColor: '#FEF2F2' }]}>
-                    <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                    <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
                 </View>
-                <Text style={[styles.menuText, { color: '#EF4444' }]}>Cerrar Sesión</Text>
+                <Text style={[styles.menuText, { color: COLORS.danger }]}>Cerrar Sesión</Text>
                 <Ionicons name="chevron-forward" size={20} color="#FCA5A5" />
             </TouchableOpacity>
         </View>
@@ -96,8 +90,8 @@ export default function SettingsScreen({ navigation }) {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingTop: Constants.statusBarHeight + 20, 
+    backgroundColor: COLORS.background,
+    paddingTop: 30, 
   },
   content: {
     flex: 1,
@@ -112,34 +106,34 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#2b5cb5', 
+    backgroundColor: COLORS.primary, 
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
-    shadowColor: '#2b5cb5',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 6,
     borderWidth: 4,
-    borderColor: 'white'
+    borderColor: COLORS.white
   },
   avatarText: {
     fontSize: 34,
     fontWeight: '800',
-    color: 'white',
+    color: COLORS.white,
     letterSpacing: 1
   },
   nameText: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#111827',
+    color: COLORS.text,
     marginBottom: 4,
     textAlign: 'center',
   },
   jobText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
     textAlign: 'center',
     fontWeight: '500'
   },
@@ -157,7 +151,7 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: COLORS.white,
     padding: 16,
     borderRadius: 16,
     shadowColor: '#000',
