@@ -3,19 +3,15 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import axios from 'axios';
 import api from './api';
 
-// RECOMENDACIÓN: Idealmente mueve esta URL a un archivo constants.js o config.js
-// para no tenerla repetida en dos archivos.
 const API_URL = 'https://arierp.com/api'; 
 
 export const login = async (username, password) => {
-  const response = await api.post('/administration/Users/login', {
+  const response = await api.post('/administration/AdminUsers/admin-login', {
     username,
     password
   });
   return response.data;
 };
-
-// --- GESTIÓN DE CREDENCIALES ---
 
 export const storeUserCredentials = async (username, password) => {
   await SecureStore.setItemAsync('savedUsername', username);
@@ -27,8 +23,6 @@ export const getUserCredentials = async () => {
   const password = await SecureStore.getItemAsync('savedPassword');
   return { username, password };
 };
-
-// --- GESTIÓN DE SESIÓN ---
 
 export const setSession = async (accessToken, refreshToken) => {
   if (accessToken) {
@@ -45,7 +39,6 @@ export const setSession = async (accessToken, refreshToken) => {
 };
 
 export const setUserInfo = async (user) => {
-  // Verificación extra para evitar guardar "undefined"
   if(user) {
       await SecureStore.setItemAsync('userInfo', JSON.stringify(user));
       if (user.id) {
@@ -59,7 +52,7 @@ export const getUserInfo = async () => {
   try {
     return json ? JSON.parse(json) : null;
   } catch (e) {
-    return null; // Evita crash si el JSON está corrupto
+    return null;
   }
 };
 
@@ -79,8 +72,6 @@ export const clearFullStorage = async () => {
 export const logout = async () => {
   await clearSession();
 };
-
-// --- BIOMETRÍA ---
 
 export const checkBiometricSupport = async () => {
   const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -102,8 +93,6 @@ export const authenticateWithBiometrics = async () => {
   }
 };
 
-// --- VALIDACIÓN AL INICIO ---
-
 export const validateStartupSession = async () => {
   try {
     const refreshToken = await SecureStore.getItemAsync('refreshToken');
@@ -114,9 +103,8 @@ export const validateStartupSession = async () => {
       return false;
     }
 
-    // Usamos axios puro para verificar si el refresh token sigue vivo
     const response = await axios.post(
-      `${API_URL}/administration/Users/${userId}/refreshTokenMobile`,
+      `${API_URL}/administration/AdminUsers/${userId}/refreshTokenMobile`,
       {
         accessToken: currentAccessToken || "",
         refreshToken: refreshToken,
@@ -132,12 +120,9 @@ export const validateStartupSession = async () => {
       return true;
     }
     
-    // Si la respuesta es 200 OK pero no trae token (caso raro), asumimos false
     return false;
 
   } catch (error) {
-    // IMPORTANTE: Si falla la validación inicial (ej: refresh token expirado),
-    // limpiamos la sesión para que el usuario sea redirigido al Login limpiamente.
     await clearSession(); 
     return false;
   }

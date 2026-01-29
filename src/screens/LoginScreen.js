@@ -52,11 +52,19 @@ export default function LoginScreen() {
   };
 
   const performLoginSuccess = async (data, currentPassword) => {
-    const { accessToken, refreshToken, id, firstName, lastName, jobPosition } = data;
+    const { 
+        accessToken, 
+        refreshToken, 
+        id, 
+        firstName, 
+        lastName, 
+        jobPosition, 
+        username: apiUsername 
+    } = data;
 
     await setSession(accessToken, refreshToken);
     
-    const userToSave = username || savedUser?.username;
+    const userToSave = apiUsername || username || savedUser?.username;
 
     if (userToSave && currentPassword) {
       await storeUserCredentials(userToSave, currentPassword);
@@ -64,9 +72,9 @@ export default function LoginScreen() {
 
     const userData = { 
       id, 
-      firstName, 
-      lastName, 
-      jobPosition, 
+      firstName: firstName || '', 
+      lastName: lastName || '', 
+      jobPosition: jobPosition || '', 
       username: userToSave
     };
 

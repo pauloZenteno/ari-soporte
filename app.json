@@ -2,7 +2,7 @@
   "expo": {
     "name": "AriSoporte",
     "slug": "AriSoporte",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,8 @@
       "infoPlist": {
         "NSFaceIDUsageDescription": "Permite a AriSoporte usar FaceID para autenticarte rápidamente."
       },
-      "bundleIdentifier": "com.anonymous.AriSoporte"
+      "bundleIdentifier": "com.threecode.ari-soporte",
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
@@ -29,7 +30,8 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
       ],
-      "package": "com.anonymous.AriSoporte"
+      "package": "com.threecode.ari_soporte",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,6 +43,11 @@
           "faceIDPermission": "Permite a AriSoporte usar FaceID para autenticarte rápidamente."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "aed6c085-e325-4cf2-ae26-167271c8b70c"
+      }
+    }
   }
 }
