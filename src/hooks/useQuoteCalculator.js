@@ -1,12 +1,17 @@
 import { useCallback } from 'react';
-import { MODULE_IDS, COSTS } from '../utils/quoteConstants';
+import { MODULE_IDS, COSTS, PERIODICITIES } from '../utils/quoteConstants';
 
 export const useQuoteCalculator = (priceSchemes) => {
 
+  const getPeriodicityMultiplier = (periodicityId) => {
+    const p = PERIODICITIES.find(x => x.id === periodicityId);
+    return p ? p.multiplier : 1; 
+  };
+
   const calculateTotals = useCallback((formData) => {
     let {
-      anualDiscount,
-      monthlyDiscount,
+      periodicity,        // Nuevo campo requerido
+      discount,           // Nuevo campo (porcentaje simple, ej: 15)
       requiresStamps,
       numberOfExtraUsers,
       numberOfExtraRings,
@@ -14,26 +19,29 @@ export const useQuoteCalculator = (priceSchemes) => {
       moduleDetails
     } = formData;
 
-    // Asegurar valores numéricos
-    anualDiscount = Number(anualDiscount) || 0;
-    monthlyDiscount = Number(monthlyDiscount) || 0;
+    // Valores por defecto y sanitización
+    const currentPeriodicity = Number(periodicity) || 1;
+    const currentDiscount = Number(discount) || 0;
+    const multiplier = getPeriodicityMultiplier(currentPeriodicity);
+
     numberOfExtraUsers = Number(numberOfExtraUsers) || 0;
     numberOfExtraRings = Number(numberOfExtraRings) || 0;
     
-    // Lógica processStamp (integrada)
-    const updatedModules = moduleDetails.map(m => ({ ...m })); // Copia profunda para no mutar directo
+    // --- Lógica processStamp (Integrada) ---
+    // Copia profunda para no mutar el estado directamente
+    const updatedModules = moduleDetails.map(m => ({ ...m })); 
     
-    // Paso 1: Calcular Timbrado (Stamps)
     let calcTotalStamp = totalStamp;
     
-    // Si Nómina está activa y requiere timbres
     const nominaModule = updatedModules.find(m => m.moduleId === MODULE_IDS.NOMINA);
     
+    // Regla: Si Nómina está activa y requiere timbres, se calculan. Si no, 0.
     if (nominaModule) {
         if (!nominaModule.isActive) {
-            calcTotalStamp = 0;
-            // Si Nómina se apaga, requiresStamps podría resetearse según lógica de negocio, 
-            // pero el Angular solo pone totalStamp a 0 si es Nómina inactiva
+             // Si el módulo se desactiva, Angular pone totalStamp a 0
+             if (nominaModule.moduleId === MODULE_IDS.NOMINA) {
+                 calcTotalStamp = 0;
+             }
         } else if (requiresStamps) {
              calcTotalStamp = (Number(nominaModule.employeeNumber) || 0) * 5;
         } else {
@@ -41,115 +49,103 @@ export const useQuoteCalculator = (priceSchemes) => {
         }
     }
 
-    // Actualizar stamps en módulos
     updatedModules.forEach(mod => {
         if (mod.moduleId === MODULE_IDS.NOMINA) {
              mod.stamp = calcTotalStamp;
         } else {
-             mod.stamp = 0; // Solo nómina lleva stamps en la lógica actual
+             mod.stamp = 0; 
         }
     });
 
-    // Paso 2: Calcular Precios de Módulos (processProductPriceScheme)
-    let pricePerEmployee = 0;
-    let moduleSupTotalMonthly = 0;
-    let moduleSupTotalAnual = 0;
+    // --- Lógica processProductPriceScheme ---
     
-    const amountExtraUsersMonthly = numberOfExtraUsers * COSTS.EXTRA_USER;
-    const amountExtraUsersAnual = amountExtraUsersMonthly * 12;
-    const amountExtraRingsMonthly = numberOfExtraRings * COSTS.EXTRA_RING;
-    const amountExtraRingsAnual = amountExtraRingsMonthly * 12;
-
-    const amountStampMonthly = calcTotalStamp;
-    const amountStampAnual = calcTotalStamp * 12;
+    let moduleSupTotal = 0;
+    let amountStamp = 0; // Total monetario de timbres
+    
+    // Cálculos de extras multiplicados por la periodicidad
+    const amountExtraUsers = numberOfExtraUsers * COSTS.EXTRA_USER * multiplier;
+    const amountExtraRings = numberOfExtraRings * COSTS.EXTRA_RING * multiplier;
 
     updatedModules.forEach(mod => {
+        // Resetear si no está activo
         if (!mod.isActive) {
             mod.userNumberFree = 0;
-            mod.monthlyPrice = 0;
-            mod.annualPrice = 0;
+            mod.stamp = 0;
+            mod.price = 0;
+            mod.totalPrice = 0; // En Angular usan 'totalPrice' en lugar de monthly/annual
             return;
         }
 
-        // Buscar esquema de precios
-        // Filtro por productId (moduleId) y resourceId fijo del código Angular ("NZ9DezJWqMQOnRE3")? 
-        // NOTA: El código Angular usa hardcoded "NZ9DezJWqMQOnRE3" como resourceId para filtrar precios base.
-        // Asumiremos que esa lógica se mantiene.
-        
+        // 1. Filtrar precios (resourceId fijo a NOMINA según lógica Angular)
         const prices = priceSchemes.filter(p => p.productId === mod.moduleId && p.resourceId === MODULE_IDS.NOMINA); 
         
-        // Encontrar el rango correcto basado en employeeNumber
         const empNum = Number(mod.employeeNumber) || 0;
         
+        // 2. Encontrar el rango de precio
         let data = prices.sort((a, b) => a.resourceNumber - b.resourceNumber).find(x => x.resourceNumber >= empNum);
 
         if (!data && prices.length > 0) {
-            // Si supera el máximo, toma el más alto
+             // Si supera el máximo, toma el más alto disponible (lógica Angular .filter < empNum)
              data = prices
             .filter(x => x.resourceNumber < empNum)
             .sort((a, b) => b.resourceNumber - a.resourceNumber)[0];
         }
 
-        // Buscar precio de usuario extra incluido (userNumberFree)
-        // El Angular busca: productId === module.id && parentId === data.id
+        // 3. Buscar precio de usuarios incluidos (userNumberFree)
         const userPrice = data ? priceSchemes.find(p => p.productId === mod.moduleId && p.parentId === data.id) : null;
 
-        if (mod.moduleId === MODULE_IDS.RH) {
-            pricePerEmployee = data?.unitPrice ?? 0;
-        }
-
         const unitPrice = data?.unitPrice ?? 0;
-        const monthlyPrice = Math.round(unitPrice * empNum * 100) / 100;
-        const annualPrice = Math.round(monthlyPrice * 12 * 100) / 100;
+        
+        // 4. Calcular totales del módulo
+        const baseMonthlyPrice = Math.round(unitPrice * empNum * 100) / 100;
+        const totalPrice = Math.round(baseMonthlyPrice * multiplier * 100) / 100;
 
-        moduleSupTotalMonthly += monthlyPrice;
-        moduleSupTotalAnual += annualPrice;
+        moduleSupTotal += totalPrice;
 
         mod.userNumberFree = userPrice?.resourceNumber ?? 0;
-        mod.monthlyPrice = monthlyPrice;
-        mod.annualPrice = annualPrice;
         mod.price = unitPrice;
+        mod.totalPrice = totalPrice;
     });
 
-    // Paso 3: Descuentos y Totales Finales
-    const amountDiscountAnual = moduleSupTotalAnual * (anualDiscount / 100);
-    const amountDiscountMonthly = moduleSupTotalMonthly * (monthlyDiscount / 100);
+    // Calcular el monto total de los timbres (Precio timbre * cantidad * periodicidad ???)
+    // NOTA: En el código Angular: amountStamp = totalStamp * multiplier;
+    // Esto asume que 'totalStamp' ya es un valor monetario O que el costo por stamp es implícito.
+    // Revisando el Angular: "totalStamp = module.employeeNumber * 5". Ese '5' parece ser precio.
+    // Entonces totalStamp es $$$, no cantidad.
+    amountStamp = calcTotalStamp * multiplier;
 
-    const subTotalMonthly = (moduleSupTotalMonthly + amountStampMonthly + amountExtraUsersMonthly + amountExtraRingsMonthly) - amountDiscountMonthly;
-    const subTotalAnual = (moduleSupTotalAnual + amountStampAnual + amountExtraUsersAnual + amountExtraRingsAnual) - amountDiscountAnual;
-
-    const ivaMonthly = Math.round(subTotalMonthly * 0.16 * 100) / 100;
-    const ivaAnual = Math.round(subTotalAnual * 0.16 * 100) / 100;
+    // --- Totales Finales ---
+    const amountDiscount = moduleSupTotal * (currentDiscount / 100);
     
-    const totalMonthly = Math.round((subTotalMonthly + ivaMonthly) * 100) / 100;
-    const totalAnual = Math.round((subTotalAnual + ivaAnual) * 100) / 100;
+    const subTotal = (moduleSupTotal + amountStamp + amountExtraUsers + amountExtraRings) - amountDiscount;
+    
+    const iva = Math.round(subTotal * 0.16 * 100) / 100;
+    const total = Math.round((subTotal + iva) * 100) / 100;
 
     return {
         ...formData,
-        moduleDetails: updatedModules, // Módulos con precios actualizados
-        pricePerEmployee,
-        moduleSupTotalMonthly,
-        moduleSupTotalAnual,
-        amountDiscountMonthly,
-        amountDiscountAnual,
-        amountStampMonthly,
-        amountStampAnual,
-        amountExtraUsersMonthly,
-        amountExtraUsersAnual,
-        amountExtraRingsMonthly,
-        amountExtraRingsAnual,
-        subTotalMonthly,
-        subTotalAnual,
-        ivaMonthly,
-        ivaAnual,
-        totalMonthly,
-        totalAnual,
-        totalStamp: calcTotalStamp
+        moduleDetails: updatedModules,
+        
+        // Valores calculados
+        moduleSupTotal,
+        amountDiscount,
+        amountStamp,
+        amountExtraUsers,
+        amountExtraRings,
+        
+        // Totales finales de la cotización
+        subTotal,
+        iva,
+        total,
+        
+        // Mantener estado de stamps
+        totalStamp: calcTotalStamp,
+        requiresStamps
     };
 
   }, [priceSchemes]);
 
-  // Calculadora separada para Productos (Hardware)
+  // Calculadora de Hardware (Sin cambios mayores, solo asegurando consistencia)
   const calculateProducts = useCallback((productDetails) => {
       let subTotal = 0;
       const updatedProducts = productDetails.map(p => {
@@ -171,5 +167,5 @@ export const useQuoteCalculator = (priceSchemes) => {
       };
   }, []);
 
-  return { calculateTotals, calculateProducts };
+  return { calculateTotals, calculateProducts, getPeriodicityMultiplier };
 };

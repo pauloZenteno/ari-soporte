@@ -113,6 +113,7 @@ const CotizadorScreen = ({ navigation }) => {
       const fullQuoteData = await getQuoteById(id);
       await downloadQuotePdf(fullQuoteData);
     } catch (error) {
+      console.error(error);
       Alert.alert("Error", "No se pudo descargar el archivo.");
     } finally {
       setDownloadingId(null);

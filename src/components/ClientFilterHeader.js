@@ -4,6 +4,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SELLER_OPTIONS } from '../utils/constants';
+import { useAuth } from '../context/AuthContext';
+import { PERMISSIONS, hasPermission } from '../utils/permissions';
 
 const ModalOption = ({ label, isActive, onPress, icon }) => (
   <TouchableOpacity style={[styles.modalOption, isActive && styles.modalOptionActive]} onPress={onPress}>
@@ -24,6 +26,10 @@ export default function ClientFilterHeader({
   titleSort = "Ordenar"
 }) {
   const [activeModal, setActiveModal] = useState(null); 
+  const { userProfile } = useAuth();
+
+  // Validamos si el usuario tiene permiso para ver todos los clientes
+  const canViewAll = hasPermission(userProfile?.roleId, PERMISSIONS.VIEW_ALL_CLIENTS);
 
   const activeSellerName = filters.sellerId 
     ? SELLER_OPTIONS.find(s => s.id === filters.sellerId)?.name.split(' ')[0] 
@@ -61,18 +67,22 @@ export default function ClientFilterHeader({
 
       <View style={styles.filtersRow}>
         
-        <TouchableOpacity 
-            style={[styles.filterButton, filters.sellerId && styles.filterButtonActive]} 
-            onPress={() => setActiveModal('sellers')}
-        >
-            <Ionicons name="people" size={18} color={filters.sellerId ? "#2b5cb5" : "#4B5563"} />
-            <Text style={[styles.filterButtonText, filters.sellerId && styles.filterButtonTextActive]}>
-                {activeSellerName}
-            </Text>
-            <Ionicons name="chevron-down" size={14} color={filters.sellerId ? "#2b5cb5" : "#9CA3AF"} style={{marginLeft: 4}}/>
-        </TouchableOpacity>
-
-        <View style={{width: 10}} />
+        {/* Solo mostramos el botón de filtro de vendedores si el usuario tiene permiso */}
+        {canViewAll && (
+            <>
+                <TouchableOpacity 
+                    style={[styles.filterButton, filters.sellerId && styles.filterButtonActive]} 
+                    onPress={() => setActiveModal('sellers')}
+                >
+                    <Ionicons name="people" size={18} color={filters.sellerId ? "#2b5cb5" : "#4B5563"} />
+                    <Text style={[styles.filterButtonText, filters.sellerId && styles.filterButtonTextActive]}>
+                        {activeSellerName}
+                    </Text>
+                    <Ionicons name="chevron-down" size={14} color={filters.sellerId ? "#2b5cb5" : "#9CA3AF"} style={{marginLeft: 4}}/>
+                </TouchableOpacity>
+                <View style={{width: 10}} />
+            </>
+        )}
 
         <TouchableOpacity 
             style={[styles.filterButton, styles.filterButtonActive]} 

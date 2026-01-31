@@ -2,6 +2,9 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Platform, UIManager } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useClients } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
+import { PERMISSIONS, hasPermission } from '../utils/permissions';
+import { AdminRoleEnum } from '../utils/constants';
 import ActiveClientCard from '../components/cards/ActiveClientCard';
 import InactiveClientCard from '../components/cards/InactiveClientCard';
 import ClientFilterHeader from '../components/ClientFilterHeader';
@@ -13,6 +16,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const ClientsScreen = () => {
     const navigation = useNavigation();
+    const { userProfile } = useAuth();
     
     useEffect(() => {
         navigation.setOptions({ headerShown: false });
@@ -32,6 +36,14 @@ const ClientsScreen = () => {
         inactives, loadingInactives, fetchInactives, refreshInactives, applyInactiveFilter, activeInactiveFilter,
         suspendClient, reactivateClient 
     } = useClients();
+
+    const canManageStatus = useMemo(() => 
+        hasPermission(userProfile?.roleId, PERMISSIONS.MANAGE_CLIENT_STATUS), 
+    [userProfile]);
+
+    const canViewAll = useMemo(() => 
+        hasPermission(userProfile?.roleId, PERMISSIONS.VIEW_ALL_CLIENTS), 
+    [userProfile]);
 
     const { translateY, onScroll } = useMemo(() => {
         const heightToHide = controlsHeight || 1; 
@@ -64,8 +76,19 @@ const ClientsScreen = () => {
     };
 
     const getFilteredData = (data) => {
-        if (!searchQuery) return data;
-        return data.filter(item => 
+        let result = data;
+        
+        // CORRECCIÓN AQUÍ: Usamos sellerId en lugar de id
+        if (!canViewAll) {
+            const mySellerId = userProfile?.sellerId || userProfile?.id;
+            if (mySellerId) {
+                result = result.filter(client => client.sellerId === mySellerId);
+            }
+        }
+
+        if (!searchQuery) return result;
+
+        return result.filter(item => 
             (item.businessName || item.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             (item.alias || '').toLowerCase().includes(searchQuery.toLowerCase())
         );
@@ -124,7 +147,7 @@ const ClientsScreen = () => {
                                 item={item} 
                                 isExpanded={expandedId === item.id} 
                                 onPress={() => toggleExpand(item.id)}
-                                onSuspend={() => suspendClient(item.id)}
+                                onSuspend={canManageStatus ? () => suspendClient(item.id) : null}
                             />
                         );
                     } else {
@@ -133,7 +156,7 @@ const ClientsScreen = () => {
                                 item={item} 
                                 isExpanded={expandedId === item.id} 
                                 onPress={() => toggleExpand(item.id)}
-                                onReactivate={() => reactivateClient(item.id)}
+                                onReactivate={canManageStatus ? () => reactivateClient(item.id) : null}
                             />
                         );
                     }

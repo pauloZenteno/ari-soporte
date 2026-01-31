@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SELLER_MAP } from '../../utils/constants';
 import { openWhatsApp } from '../../utils/actions';
+import { useAuth } from '../../context/AuthContext';
+import { PERMISSIONS, hasPermission } from '../../utils/permissions';
 
 const InactiveClientCard = React.memo(({ item, isExpanded, onPress, onReactivate }) => {
-  // --- VALIDACIÓN DE SEGURIDAD ---
   if (!item) return null;
+
+  const { userProfile } = useAuth();
+
+  const canReactivate = useMemo(() => 
+      hasPermission(userProfile?.roleId, PERMISSIONS.MANAGE_CLIENT_STATUS), 
+  [userProfile]);
 
   const sellerIdStr = item.sellerId ? String(item.sellerId) : null;
   const sellerName = SELLER_MAP[sellerIdStr];
@@ -16,7 +23,6 @@ const InactiveClientCard = React.memo(({ item, isExpanded, onPress, onReactivate
     openWhatsApp(item.phoneNumber, message);
   };
 
-  // Confirmación para reactivar
   const handleReactivate = () => {
       Alert.alert(
           "Confirmar Reactivación",
@@ -71,13 +77,15 @@ const InactiveClientCard = React.memo(({ item, isExpanded, onPress, onReactivate
                   <Text style={styles.actionText}>Contactar</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.btnReactivate]}
-                onPress={handleReactivate}
-              >
-                  <Ionicons name="refresh" size={18} color="#2b5cb5" />
-                  <Text style={[styles.actionText, styles.textReactivate]}>Reactivar</Text>
-              </TouchableOpacity>
+              {canReactivate && (
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.btnReactivate]}
+                    onPress={handleReactivate}
+                  >
+                      <Ionicons name="refresh" size={18} color="#2b5cb5" />
+                      <Text style={[styles.actionText, styles.textReactivate]}>Reactivar</Text>
+                  </TouchableOpacity>
+              )}
           </View>
         </View>
       )}

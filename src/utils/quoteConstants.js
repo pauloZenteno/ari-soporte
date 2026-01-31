@@ -12,8 +12,7 @@ export const INITIAL_MODULES = [
     userNumberFree: 0,
     stamp: 0,
     price: 0,
-    monthlyPrice: 0,
-    annualPrice: 0,
+    totalPrice: 0,
     isActive: true
   },
   {
@@ -23,8 +22,7 @@ export const INITIAL_MODULES = [
     userNumberFree: 0,
     stamp: 0,
     price: 0,
-    monthlyPrice: 0,
-    annualPrice: 0,
+    totalPrice: 0,
     isActive: false
   },
   {
@@ -34,21 +32,20 @@ export const INITIAL_MODULES = [
     userNumberFree: 0,
     stamp: 0,
     price: 0,
-    monthlyPrice: 0,
-    annualPrice: 0,
+    totalPrice: 0,
     isActive: false
   }
 ];
 
 export const HARDCODED_PRODUCTS = [
-  { id: 1, name: 'ZKTECO Horus E1', price: 7974.14  },
+  { id: 1, name: 'ZKTECO Horus E1', price: 7974.14 },
   { id: 7, name: 'Hikvision DSK1T343MWX', price: 2500 },
   { id: 2, name: 'ZKTECO SpeedFace V5LP', price: 6887.93 },
   { id: 3, name: 'ZKTECO SpeedFace V5LPWIFI', price: 6887.93 },
   { id: 4, name: 'ZKTECO MB10VL', price: 2370.69 },
-  { id: 5, name: 'Batería de Respaldo Mini', price: 1206.032},
+  { id: 5, name: 'Batería de Respaldo Mini', price: 1206.032 },
   { id: 6, name: 'Plan Datos Renta Mensual Tarjeta SIM Telcel', price: 150 },
-  { id: 8, name: 'DAHUA DHI-ASI3214A-W (FIJO)', price: 3500 },
+  { id: 8, name: 'DAHUA DHI-ASI3214A-W (FIJO)', price: 3500 }, 
   { id: 9, name: 'DAHUA DHI-ASI3214A-W (PORTATIL)', price: 4500 },
 ];
 
@@ -56,3 +53,10 @@ export const COSTS = {
   EXTRA_USER: 55,
   EXTRA_RING: 1
 };
+
+export const PERIODICITIES = [
+    { id: 1, description: 'MENSUAL', multiplier: 1, defaultDiscount: 0 },
+    { id: 2, description: 'TRIMESTRAL', multiplier: 3, defaultDiscount: 5 },
+    { id: 3, description: 'SEMESTRAL', multiplier: 6, defaultDiscount: 8 },
+    { id: 4, description: 'ANUAL', multiplier: 12, defaultDiscount: 15 },
+];

@@ -1,12 +1,19 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native'; // Importamos Alert
+import React, { useMemo } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SELLER_MAP } from '../../utils/constants';
 import { openWhatsApp } from '../../utils/actions';
+import { useAuth } from '../../context/AuthContext';
+import { PERMISSIONS, hasPermission } from '../../utils/permissions';
 
 const ActiveClientCard = React.memo(({ item, isExpanded, onPress, onSuspend }) => {
-  // --- VALIDACIÓN DE SEGURIDAD ---
   if (!item) return null; 
+
+  const { userProfile } = useAuth();
+  
+  const canSuspend = useMemo(() => 
+      hasPermission(userProfile?.roleId, PERMISSIONS.MANAGE_CLIENT_STATUS), 
+  [userProfile]);
 
   const sellerIdStr = item.sellerId ? String(item.sellerId) : null;
   const sellerName = SELLER_MAP[sellerIdStr];
@@ -16,7 +23,6 @@ const ActiveClientCard = React.memo(({ item, isExpanded, onPress, onSuspend }) =
     openWhatsApp(item.phoneNumber, message);
   };
 
-  // Confirmación para suspender
   const handleSuspend = () => {
     Alert.alert(
         "Confirmar Suspensión",
@@ -65,13 +71,15 @@ const ActiveClientCard = React.memo(({ item, isExpanded, onPress, onSuspend }) =
                   <Text style={styles.actionText}>Contactar</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.btnSuspend]}
-                onPress={handleSuspend} // Usamos la función con alerta
-              >
-                  <Ionicons name="ban" size={18} color="#EF4444" />
-                  <Text style={[styles.actionText, styles.textSuspend]}>Suspender</Text>
-              </TouchableOpacity>
+              {canSuspend && (
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.btnSuspend]}
+                    onPress={handleSuspend}
+                  >
+                      <Ionicons name="ban" size={18} color="#EF4444" />
+                      <Text style={[styles.actionText, styles.textSuspend]}>Suspender</Text>
+                  </TouchableOpacity>
+              )}
           </View>
         </View>
       )}

@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { getClientsFiltered, updateClientStatus, updateClient } from '../services/clientService';
 import { getQuotes } from '../services/quoteService';
 import { getUserInfo } from '../services/authService';
+import { AdminRoleEnum } from '../utils/constants';
 
 const ClientContext = createContext();
 
@@ -45,6 +46,10 @@ export const ClientProvider = ({ children }) => {
     const token = await SecureStore.getItemAsync('accessToken');
     if (!token) return { newItems: [], totalCount: 0, success: false };
 
+    const currentUser = await getUserInfo();
+    const isSeller = currentUser?.roleId === AdminRoleEnum.Seller;
+    const sellerId = currentUser?.sellerId;
+
     let params = {
       pageNumber: page,
       pageSize: PAGE_SIZE,
@@ -54,11 +59,20 @@ export const ClientProvider = ({ children }) => {
       ...filters 
     };
 
+    if (isSeller && sellerId) {
+        params.sellerId = sellerId;
+    }
+
     Object.keys(params).forEach(key => (params[key] === null || params[key] === undefined) && delete params[key]);
 
     try {
       const result = await getClientsFiltered(params);
-      const newItems = Array.isArray(result) ? result : (result.items || result.data || []);
+      let newItems = Array.isArray(result) ? result : (result.items || result.data || []);
+      
+      if (isSeller && sellerId) {
+          newItems = newItems.filter(item => item.sellerId === sellerId);
+      }
+
       return { newItems, totalCount: result.totalCount || 0, success: true }; 
     } catch (error) {
       if (error.message?.includes('Credentials missing')) {

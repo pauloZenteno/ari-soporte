@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SELLER_MAP } from '../../utils/constants';
 import { openWhatsApp } from '../../utils/actions';
 import { useClients } from '../../context/ClientContext';
+import { useAuth } from '../../context/AuthContext';
+import { PERMISSIONS, hasPermission } from '../../utils/permissions';
 
 const ClientCard = React.memo(({ item, isExpanded, onPress }) => {
-    // --- AGREGAR ESTA LÍNEA DE SEGURIDAD ---
     if (!item) return null;
-    // ---------------------------------------
 
     const { activateDemo } = useClients();
+    const { userProfile } = useAuth();
+
+    const canActivate = useMemo(() => 
+        hasPermission(userProfile?.roleId, PERMISSIONS.MANAGE_CLIENT_STATUS), 
+    [userProfile]);
 
     const trialEnd = new Date(item.trialEndsAt || Date.now());
     const createdAt = new Date(item.createdAt || Date.now()); 
@@ -106,13 +111,15 @@ const ClientCard = React.memo(({ item, isExpanded, onPress }) => {
                         <Text style={styles.actionText}>Contactar</Text>
                     </TouchableOpacity>
                     
-                    <TouchableOpacity 
-                        style={[styles.actionButton, styles.btnActivate]}
-                        onPress={handleActivate}
-                    >
-                        <Ionicons name="flash-outline" size={18} color="#2b5cb5" />
-                        <Text style={[styles.actionText, styles.textActivate]}>Activar</Text>
-                    </TouchableOpacity>
+                    {canActivate && (
+                        <TouchableOpacity 
+                            style={[styles.actionButton, styles.btnActivate]}
+                            onPress={handleActivate}
+                        >
+                            <Ionicons name="flash-outline" size={18} color="#2b5cb5" />
+                            <Text style={[styles.actionText, styles.textActivate]}>Activar</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
             )}

@@ -52,13 +52,16 @@ export default function LoginScreen() {
   };
 
   const performLoginSuccess = async (data, currentPassword) => {
+    // Extraemos todos los datos que vienen del backend
+    // Asegúrate de que 'roleId' venga en 'data'. Si viene como 'role', ajustalo aquí.
     const { 
         accessToken, 
         refreshToken, 
         id, 
         firstName, 
         lastName, 
-        jobPosition, 
+        jobPosition,
+        roleId, // Importante: Extraer el roleId
         username: apiUsername 
     } = data;
 
@@ -74,18 +77,24 @@ export default function LoginScreen() {
       id, 
       firstName: firstName || '', 
       lastName: lastName || '', 
-      jobPosition: jobPosition || '', 
+      jobPosition: jobPosition || '',
+      roleId: roleId, // Lo incluimos en el objeto local
       username: userToSave
     };
 
+    // Actualizamos el contexto de clientes (para nombre en header, etc)
     setUserProfile(userData);
 
+    // Guardamos en disco solo si se marcó "Recordarme" o si ya estaba guardado
     if (rememberMe || savedUser) {
       await setUserInfo(userData);
     }
 
+    // Cargamos datos iniciales
     loadInitialData();
-    signIn();
+
+    // CRÍTICO: Pasamos userData directamente a signIn para evitar lecturas de disco fallidas
+    await signIn(userData);
   };
 
   const handleLogin = async () => {
