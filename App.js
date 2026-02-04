@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+
+// 1. IMPORTAMOS LA LIBRERÍA NATIVA (La que instalaste)
+import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
+
 import { StatusBar } from 'expo-status-bar';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -16,28 +19,89 @@ import GeneralReportScreen from './src/screens/reports/GeneralReportScreen';
 import UsageReportScreen from './src/screens/reports/UsageReportScreen';
 
 import Header from './src/components/Header';
-import BottomNav from './src/components/BottomNav';
 import AnimatedSplashScreen from './src/screens/AnimatedSplashScreen'; 
 
 import { ClientProvider } from './src/context/ClientContext'; 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+
+// 2. CREAMOS EL NAVIGATOR NATIVO
+const Tab = createNativeBottomTabNavigator();
 
 function MainTabs({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <Header navigation={navigation} />
+      
       <Tab.Navigator
-        tabBar={(props) => <BottomNav {...props} />} 
-        screenOptions={{ headerShown: false }}
+        // 3. Opciones Globales Nativas
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#2b5cb5', // Tu color azul
+          
+          // Estilo translúcido nativo de iOS (Blur automático)
+          translucent: true, 
+          
+          // En esta librería, el estilo se define diferente
+          tabBarStyle: {
+            position: 'absolute',
+            bottom: 0,
+          }
+        }}
       >
-        <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Demos', tabBarIconName: 'time' }} />
-        <Tab.Screen name="Clients" component={ClientsScreen} options={{ tabBarLabel: 'Clientes', tabBarIconName: 'people' }} />
-        <Tab.Screen name="Cotizador" component={CotizadorScreen} options={{ tabBarLabel: 'Cotizar', tabBarIconName: 'calculator' }} />
-        <Tab.Screen name="Reportes" component={ReportsScreen} options={{ tabBarLabel: 'Reportes', tabBarIconName: 'bar-chart' }} />
-        <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Ajustes', tabBarIconName: 'settings' }} />
+        <Tab.Screen 
+          name="Home" 
+          component={HomeScreen} 
+          options={{ 
+            tabBarLabel: 'Demos',
+            // 4. AQUÍ CAMBIA: Usamos sfSymbol para iOS
+            tabBarIcon: () => ({
+              sfSymbol: 'clock.fill', // SF Symbol para "Time"
+              // Para Android necesitarías un asset local, por ahora solo iOS se verá nativo 100%
+            }),
+          }} 
+        />
+        <Tab.Screen 
+          name="Clients" 
+          component={ClientsScreen} 
+          options={{ 
+            tabBarLabel: 'Clientes',
+            tabBarIcon: () => ({
+              sfSymbol: 'person.2.fill', // SF Symbol para "People"
+            }),
+          }} 
+        />
+        <Tab.Screen 
+          name="Cotizador" 
+          component={CotizadorScreen} 
+          options={{ 
+            tabBarLabel: 'Cotizar',
+            tabBarIcon: () => ({
+              sfSymbol: 'doc.text.fill', // SF Symbol para "Document"
+            }),
+          }} 
+        />
+        <Tab.Screen 
+          name="Reportes" 
+          component={ReportsScreen} 
+          options={{ 
+            tabBarLabel: 'Reportes',
+            tabBarIcon: () => ({
+              sfSymbol: 'chart.bar.fill', // SF Symbol para "Chart"
+            }),
+          }} 
+        />
+        <Tab.Screen 
+          name="Settings" 
+          component={SettingsScreen} 
+          options={{ 
+            tabBarLabel: 'Ajustes',
+            tabBarIcon: () => ({
+              sfSymbol: 'gearshape.fill', // SF Symbol para "Settings"
+            }),
+          }} 
+        />
       </Tab.Navigator>
     </View>
   );
@@ -62,7 +126,6 @@ function AppNavigation() {
         screenOptions={{ 
           headerShown: false,
           animation: 'default',
-          gestureEnabled: true,
         }}
       >
         {isAuthenticated ? (

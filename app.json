@@ -2,7 +2,7 @@
   "expo": {
     "name": "AriSoporte",
     "slug": "AriSoporte",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -19,7 +19,7 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.threecode.ari-soporte",
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "adaptiveIcon": {
@@ -42,6 +42,17 @@
         "expo-local-authentication",
         {
           "faceIDPermission": "Permite a AriSoporte usar FaceID para autenticarte rápidamente."
+        }
+      ],
+      [
+        "react-native-bottom-tabs"
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],
