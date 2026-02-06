@@ -12,37 +12,39 @@ export default function Header() {
   const darkGradient = ['#152C5E', '#0F2046', '#050B1A'];
 
   return (
-    <View style={[
-        styles.container, 
-        { 
-            backgroundColor: colors.primary,
-            shadowColor: isDark ? '#000000' : colors.primary,
-            shadowOpacity: isDark ? 0.5 : 0.25,
-        }
-    ]}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    // 1. Este View padre pinta el fondo del "hueco" del mismo color que tu pantalla
+    <View style={{ backgroundColor: colors.background }}>
+        
+        <View style={[
+            styles.container, 
+            { 
+                // Tu configuración original de sombras y radios
+                backgroundColor: colors.primary,
+                shadowColor: isDark ? '#000000' : colors.primary,
+                shadowOpacity: isDark ? 0.5 : 0.25,
+            }
+        ]}>
+          <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <LinearGradient
-        colors={isDark ? darkGradient : lightGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0.8 }}
-        style={[
-            styles.headerGradient, 
-            { paddingTop: insets.top + 8 } 
-        ]}
-      >
-        <View style={styles.contentRow}>
-          <View style={styles.logoContainer}>
-            <Image 
-              source={isDark 
-                ? require('../assets/header_logo.png') 
-                : require('../assets/header_logo.png')
-              } 
-              style={styles.logo} 
-            />
-          </View>
+          <LinearGradient
+            colors={isDark ? darkGradient : lightGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.8 }}
+            style={[
+                styles.headerGradient, 
+                { paddingTop: insets.top + 8 } 
+            ]}
+          >
+            <View style={styles.contentRow}>
+              <View style={styles.logoContainer}>
+                <Image 
+                  source={require('../assets/header_logo.png')} 
+                  style={styles.logo} 
+                />
+              </View>
+            </View>
+          </LinearGradient>
         </View>
-      </LinearGradient>
     </View>
   );
 }
@@ -53,6 +55,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8, 
     zIndex: 10,
+    // Mantenemos tus curvas originales
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     overflow: 'hidden',

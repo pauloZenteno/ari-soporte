@@ -136,7 +136,13 @@ const CotizadorScreen = ({ navigation }) => {
         <TouchableOpacity 
             style={[
                 styles.createButton,
-                isDark && { backgroundColor: 'rgba(21, 200, 153, 0.15)', borderColor: '#15c899' }
+                isDark && { 
+                    backgroundColor: 'rgba(21, 200, 153, 0.15)', 
+                    borderColor: '#15c899',
+                    elevation: 0,
+                    shadowOpacity: 0,
+                    shadowColor: 'transparent'
+                }
             ]} 
             onPress={handleCreate} 
             activeOpacity={0.8}
