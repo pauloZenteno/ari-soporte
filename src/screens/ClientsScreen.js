@@ -8,6 +8,7 @@ import ActiveClientCard from '../components/cards/ActiveClientCard';
 import InactiveClientCard from '../components/cards/InactiveClientCard';
 import ClientFilterHeader from '../components/ClientFilterHeader';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { filterClients } from '../utils/search';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -69,23 +70,15 @@ const ClientsScreen = () => {
     }, []);
 
     const getFilteredData = (data) => {
-        let result = data;
-        
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(item => 
-                (item.businessName || item.name || '').toLowerCase().includes(query) ||
-                (item.alias || '').toLowerCase().includes(query)
-            );
-        }
-
-        const currentFilters = viewMode === 'actives' ? activeActiveFilter : activeInactiveFilter;
-        if (currentFilters && currentFilters.sellerId) {
-            result = result.filter(client => String(client.sellerId) === String(currentFilters.sellerId));
-        }
-
-        return result;
-    };
+  let result = filterClients(data, searchQuery);
+  const currentFilters = viewMode === 'actives' ? activeActiveFilter : activeInactiveFilter;
+  if (currentFilters?.sellerId) {
+    result = result.filter(
+      (client) => String(client.sellerId) === String(currentFilters.sellerId)
+    );
+  }
+  return result;
+};
 
     const renderClientItem = useCallback(({ item }) => {
         if (!item) return null;

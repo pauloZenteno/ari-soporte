@@ -7,6 +7,7 @@ import QuoteCard from '../components/cards/QuoteCard';
 import { SELLER_OPTIONS } from '../utils/constants';
 import { getQuoteById, downloadQuotePdf } from '../services/quoteService';
 import { useThemeColors } from '../hooks/useThemeColors';
+import { filterQuotes } from '../utils/search';
 
 const CotizadorScreen = ({ navigation }) => {
   const { quotes, loadingQuotes, hasMoreQuotes, fetchQuotes, refreshQuotes } = useClients();
@@ -67,7 +68,7 @@ const CotizadorScreen = ({ navigation }) => {
   }, [searchQuery]);
 
   const filteredData = useMemo(() => {
-    let data = [...quotes];
+  let data = filterQuotes(quotes, debouncedQuery);
     
     if (debouncedQuery) {
       const query = debouncedQuery.toLowerCase();

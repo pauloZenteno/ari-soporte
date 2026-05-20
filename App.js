@@ -3,9 +3,14 @@ import { View, Platform, LogBox } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; 
+
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+
+// --- CAMBIO CLAVE: Usamos @expo/vector-icons ---
+// Esto garantiza que los iconos se vean en Android sin configuraciones extra.
+import { MaterialCommunityIcons } from '@expo/vector-icons'; 
 
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -30,6 +35,7 @@ const Stack = createNativeStackNavigator();
 const NativeTab = createNativeBottomTabNavigator(); 
 const StandardTab = createBottomTabNavigator();     
 
+// --- IOS TABS (SIN CAMBIOS) ---
 function IOSTabs() {
   const { colors } = useThemeColors();
   const { user } = useAuth();
@@ -93,9 +99,11 @@ function IOSTabs() {
   );
 }
 
+// --- ANDROID TABS (CORREGIDO Y CON ICONOS DE EXPO) ---
 function AndroidTabs() {
   const { colors } = useThemeColors();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets(); // Detecta la barra del sistema
   const canViewQuoter = hasPermission(user?.roleId, PERMISSIONS.VIEW_QUOTER);
 
   return (
@@ -110,30 +118,36 @@ function AndroidTabs() {
           marginBottom: 5,
         },
         tabBarStyle: {
-          height: 80,
-          paddingBottom: 20,
+          // Altura dinámica: base + barra del sistema
+          height: 60 + insets.bottom, 
+          // Padding dinámico: asegura que los iconos no queden tapados
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 10, 
           paddingTop: 8,
           backgroundColor: colors.tabBar,
           borderTopWidth: 0,
-          elevation: 0, 
+          elevation: 8,
         },
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ color, size, focused }) => {
           let iconName;
-          if (route.name === 'Home') iconName = 'clock-outline';
-          else if (route.name === 'Clients') iconName = 'account-group';
-          else if (route.name === 'Cotizador') iconName = 'file-document-edit';
-          else if (route.name === 'Reportes') iconName = 'chart-bar';
-          else if (route.name === 'Settings') iconName = 'cog';
 
-          return <MaterialIcons name={iconName} size={26} color={color} />;
+          // Iconos de MaterialCommunityIcons (ahora desde @expo/vector-icons)
+          if (route.name === 'Home') iconName = focused ? 'clock' : 'clock-outline';
+          else if (route.name === 'Clients') iconName = focused ? 'account-group' : 'account-group-outline';
+          else if (route.name === 'Cotizador') iconName = focused ? 'file-document-edit' : 'file-document-edit-outline';
+          else if (route.name === 'Reportes') iconName = focused ? 'chart-bar' : 'chart-bar';
+          else if (route.name === 'Settings') iconName = focused ? 'cog' : 'cog-outline';
+
+          return <MaterialCommunityIcons name={iconName} size={26} color={color} />;
         },
       })}
     >
       <StandardTab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Demos' }} />
       <StandardTab.Screen name="Clients" component={ClientsScreen} options={{ tabBarLabel: 'Clientes' }} />
+      
       {canViewQuoter && (
         <StandardTab.Screen name="Cotizador" component={CotizadorScreen} options={{ tabBarLabel: 'Cotizar' }} />
       )}
+      
       <StandardTab.Screen name="Reportes" component={ReportsScreen} options={{ tabBarLabel: 'Reportes' }} />
       <StandardTab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Ajustes' }} />
     </StandardTab.Navigator>

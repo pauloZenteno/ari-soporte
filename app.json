@@ -2,7 +2,7 @@
   "expo": {
     "name": "AriSoporte",
     "slug": "AriSoporte",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -23,7 +23,7 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.threecode.ari-soporte",
-      "buildNumber": "7"
+      "buildNumber": "8"
     },
     "android": {
       "adaptiveIcon": {
@@ -36,7 +36,7 @@
         "android.permission.USE_FINGERPRINT"
       ],
       "package": "com.threecode.ari_soporte",
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png"

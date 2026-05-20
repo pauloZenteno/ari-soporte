@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
 import ClientFilterHeader from '../components/ClientFilterHeader';
 import ClientCard from '../components/cards/ClientCard';
+import { filterClients } from '../utils/search';
 
 // 1. ELIMINAMOS EL IMPORT ESTÁTICO DE COLORS
 // import { COLORS } from '../utils/colors'; 
@@ -74,9 +75,7 @@ export default function HomeScreen() {
       setExpandedId(expandedId === id ? null : id); 
   };
 
-  const dataToRender = demos.filter(item => 
-    (item.businessName || item.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+const dataToRender = filterClients(demos, searchQuery);
 
   const isReady = controlsHeight > 0;
 
