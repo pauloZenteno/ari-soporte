@@ -23,7 +23,7 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.threecode.ari-soporte",
-      "buildNumber": "8"
+      "buildNumber": "1.0.8"
     },
     "android": {
       "adaptiveIcon": {

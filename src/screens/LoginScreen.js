@@ -14,8 +14,9 @@ import { useAuth } from '../context/AuthContext';
 import { useThemeColors } from '../hooks/useThemeColors';
 
 const HARDCODED_SELLER_RELATIONS = {
-  'b8QWwNJYxAGr5gER': 'NZ9DezJWqMQOnRE3', 
-  '5m2XOBMXzJ4NZkwr': 'lK20zbAk4JRDVEa1', 
+  'b8QWwNJYxAGr5gER': 'NZ9DezJWqMQOnRE3', // Karen
+  '5m2XOBMXzJ4NZkwr': 'lK20zbAk4JRDVEa1', // Paola
+  'b93BVzJ3zAZelEd7': 'gElXYKpQBM5DB3qv', // Paulo
 };
 
 export default function LoginScreen() {
@@ -70,6 +71,7 @@ export default function LoginScreen() {
 
     let finalSellerId = data.sellerId;
     
+    // Si la API no trae el sellerId, lo busca en nuestro objeto hardcodeado
     if (!finalSellerId && HARDCODED_SELLER_RELATIONS[id]) {
         finalSellerId = HARDCODED_SELLER_RELATIONS[id];
     }

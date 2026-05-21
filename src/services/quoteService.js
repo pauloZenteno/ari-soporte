@@ -14,15 +14,63 @@ const arrayBufferToBase64 = (buffer) => {
   return window.btoa(binary);
 };
 
-export const getQuotes = async (pageNumber = 1, pageSize = 10, sortParam = 'CreatedAt', isDescending = true) => {
+export const getQuotes = async (pageNumber = 1, pageSize = 10, sortParam = 'CreatedAt', isDescending = true, sellerId = null, searchQuery = null) => {
   try {
-    const response = await api.get('/administration/QuoteManagement', {
-      params: { 
+    const params = { 
         pageNumber, 
         pageSize,
         sortParam,
-        isDescending
-      }
+        isDescending,
+        filterActives: true 
+    };
+
+    let filtersArray = [];
+
+    // 1. Configuramos la búsqueda (Igual que en la web)
+    if (searchQuery) {
+        filtersArray.push({
+            propertyName: "ClientName",
+            operation: 5, // Contiene (Contains)
+            value: searchQuery,
+            isHashed: false,
+            logicOperator: "OR"
+        });
+    }
+
+    // 2. Filtro estricto de seguridad por Vendedor
+    if (sellerId) {
+        filtersArray.push({
+            propertyName: "SellerId",
+            operation: 0, // Igual a (Equals)
+            value: sellerId,
+            isHashed: true,
+            logicOperator: "AND"
+        });
+    }
+
+    // Si armamos filtros, los convertimos a JSON string
+    if (filtersArray.length > 0) {
+        params.filters = JSON.stringify(filtersArray);
+    }
+
+    // 3. Agregamos los includes para que la data venga completa
+    params.includes = ["ModuleDetails", "ProductDetails"];
+
+    const response = await api.get('/administration/QuoteManagement', { 
+        params,
+        // Serializador necesario para que Axios envíe los arreglos correctamente
+        paramsSerializer: params => {
+            const searchParams = new URLSearchParams();
+            Object.keys(params).forEach(key => {
+                const value = params[key];
+                if (Array.isArray(value)) {
+                    value.forEach(val => searchParams.append(key, val));
+                } else {
+                    searchParams.append(key, value);
+                }
+            });
+            return searchParams.toString();
+        }
     });
     return response.data;
   } catch (error) {

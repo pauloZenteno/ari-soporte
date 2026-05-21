@@ -32,6 +32,10 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   
+  // --- NUEVA LÓGICA DE REFRESH ---
+  // Estado local exclusivo para el gesto pull-to-refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const [controlsHeight, setControlsHeight] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current; 
   
@@ -43,6 +47,21 @@ export default function HomeScreen() {
   }, []);
 
   const { demos, loadingDemos, fetchDemos, refreshDemos, applyDemoFilter, activeDemoFilter, hasMoreDemos } = useClients();
+
+  // --- NUEVA LÓGICA DE REFRESH ---
+  // Función para manejar el gesto manual del usuario
+  const handleRefresh = () => {
+      setIsRefreshing(true);
+      refreshDemos();
+  };
+
+  // --- NUEVA LÓGICA DE REFRESH ---
+  // Apagar el spinner del pull-to-refresh cuando termine la carga en segundo plano
+  useEffect(() => {
+      if (!loadingDemos) {
+          setIsRefreshing(false);
+      }
+  }, [loadingDemos]);
 
   const { translateY, onScroll } = useMemo(() => {
     const heightToHide = controlsHeight || 1; 
@@ -75,7 +94,7 @@ export default function HomeScreen() {
       setExpandedId(expandedId === id ? null : id); 
   };
 
-const dataToRender = filterClients(demos, searchQuery);
+  const dataToRender = filterClients(demos, searchQuery);
 
   const isReady = controlsHeight > 0;
 
@@ -136,9 +155,11 @@ const dataToRender = filterClients(demos, searchQuery);
 
             onEndReached={fetchDemos} 
             onEndReachedThreshold={0.5} 
-            onRefresh={refreshDemos}
-            // 6. CONTROLAMOS EL SPINNER DE REFRESH CON LOS COLORES NUEVOS
-            refreshing={loadingDemos && demos.length === 0} 
+            
+            // --- NUEVA LÓGICA DE REFRESH APLICADA AQUÍ ---
+            onRefresh={handleRefresh}
+            refreshing={isRefreshing} 
+            
             progressBackgroundColor={colors.card} // Fondo del círculo de carga en Android
             colors={[colors.primary]} // Color de la flecha de carga en Android
             tintColor={colors.primary} // Color en iOS

@@ -17,28 +17,18 @@ const CotizadorScreen = ({ navigation }) => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  useEffect(() => {
-    if (quotes.length === 0) {
-        fetchQuotes();
-    }
-  }, []);
-
   const [controlsHeight, setControlsHeight] = useState(0); 
-  
   const scrollY = useRef(new Animated.Value(0)).current;
   const [downloadingId, setDownloadingId] = useState(null);
 
   const { translateY, onScroll } = useMemo(() => {
     const heightToHide = controlsHeight || 1; 
-
     const clampedScrollY = scrollY.interpolate({
         inputRange: [0, 1],
         outputRange: [0, 1],
         extrapolateLeft: 'clamp',
     });
-
     const diffClamp = Animated.diffClamp(clampedScrollY, 0, heightToHide);
-
     const translate = diffClamp.interpolate({
         inputRange: [0, heightToHide],
         outputRange: [0, -heightToHide],
@@ -60,6 +50,7 @@ const CotizadorScreen = ({ navigation }) => {
     sortParam: 'CreatedAt', isDescending: true, sellerId: null 
   });
 
+  // Retraso de 400ms para no saturar la API
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
@@ -67,18 +58,16 @@ const CotizadorScreen = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Búsqueda Remota Automática
+  useEffect(() => {
+    refreshQuotes(debouncedQuery);
+  }, [debouncedQuery]);
+
   const filteredData = useMemo(() => {
-  let data = filterQuotes(quotes, debouncedQuery);
+    // ESTA ES LA LÍNEA MÁGICA QUE FALTABA PARA EL TIEMPO REAL
+    let data = filterQuotes(quotes, debouncedQuery); 
     
-    if (debouncedQuery) {
-      const query = debouncedQuery.toLowerCase();
-      data = data.filter(item => 
-        (item.clientName || '').toLowerCase().includes(query) ||
-        (item.companyName || '').toLowerCase().includes(query) ||
-        (item.folio || '').toLowerCase().includes(query)
-      );
-    }
-    
+    // Filtro visual por si usas el selector de vendedores superior
     if (activeFilters.sellerId) {
       const sellerOption = SELLER_OPTIONS.find(s => s.id === activeFilters.sellerId);
       if (sellerOption) {
@@ -86,6 +75,7 @@ const CotizadorScreen = ({ navigation }) => {
       }
     }
     
+    // Ordenamiento visual
     if (activeFilters.sortParam === 'BusinessName') {
       data.sort((a, b) => (a.companyName || '').localeCompare(b.companyName || ''));
     } else {
@@ -98,7 +88,7 @@ const CotizadorScreen = ({ navigation }) => {
     
     return data;
   }, [quotes, debouncedQuery, activeFilters]);
-
+  
   const handleApplyFilter = (sortParam, isDescending, sellerId) => {
     setActiveFilters(prev => ({ ...prev, sortParam, isDescending, sellerId }));
   };
@@ -113,13 +103,6 @@ const CotizadorScreen = ({ navigation }) => {
     try {
       Alert.alert("Generando PDF", "Descargando cotización, por favor espere...");
       const fullQuoteData = await getQuoteById(id);
-
-      // --- LOGS AÑADIDOS PARA DEBUG ---
-      console.log("============ DATA ENVIADA AL PDF ============");
-      console.log(JSON.stringify(fullQuoteData, null, 2));
-      console.log("===========================================");
-      // ---------------------------------
-
       await downloadQuotePdf(fullQuoteData);
     } catch (error) {
       console.error(error);
@@ -144,13 +127,7 @@ const CotizadorScreen = ({ navigation }) => {
         <TouchableOpacity 
             style={[
                 styles.createButton,
-                isDark && { 
-                    backgroundColor: 'rgba(21, 200, 153, 0.15)', 
-                    borderColor: '#15c899',
-                    elevation: 0,
-                    shadowOpacity: 0,
-                    shadowColor: 'transparent'
-                }
+                isDark && { backgroundColor: 'rgba(21, 200, 153, 0.15)', borderColor: '#15c899', elevation: 0, shadowOpacity: 0, shadowColor: 'transparent' }
             ]} 
             onPress={handleCreate} 
             activeOpacity={0.8}
@@ -176,15 +153,8 @@ const CotizadorScreen = ({ navigation }) => {
     if (hasMoreQuotes && quotes.length > 0) {
         return (
             <TouchableOpacity 
-                style={[
-                    styles.loadMoreButton,
-                    { 
-                        backgroundColor: colors.card,
-                        borderColor: colors.primary,
-                        shadowColor: colors.primary
-                    }
-                ]} 
-                onPress={fetchQuotes}
+                style={[styles.loadMoreButton, { backgroundColor: colors.card, borderColor: colors.primary, shadowColor: colors.primary }]} 
+                onPress={() => fetchQuotes(debouncedQuery)}
                 activeOpacity={0.7}
             >
                 <Text style={[styles.loadMoreText, { color: colors.primary }]}>Cargar más cotizaciones</Text>
@@ -192,7 +162,6 @@ const CotizadorScreen = ({ navigation }) => {
             </TouchableOpacity>
         );
     }
-
     return <View style={{ height: 40 }} />;
   };
 
@@ -231,30 +200,22 @@ const CotizadorScreen = ({ navigation }) => {
             renderItem={renderItem}
             ListHeaderComponent={renderListHeader}
             ListFooterComponent={renderFooter}
+            contentContainerStyle={{ paddingTop: controlsHeight, paddingBottom: 120, paddingHorizontal: 20 }}
             
-            contentContainerStyle={{ 
-                paddingTop: controlsHeight, 
-                paddingBottom: 120, 
-                paddingHorizontal: 20 
-            }}
-            
-            refreshing={loadingQuotes}
-            onRefresh={refreshQuotes}
-            onEndReached={null}
+            refreshing={loadingQuotes && quotes.length === 0}
+            onRefresh={() => refreshQuotes(debouncedQuery)}
             
             initialNumToRender={8}
             maxToRenderPerBatch={10}
             windowSize={5} 
             removeClippedSubviews={true} 
-            
             onScroll={onScroll}
             scrollEventThrottle={16}
-
             ListEmptyComponent={
                 <View style={styles.center}>
                     <Ionicons name="document-text-outline" size={48} color={colors.border} />
                     <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                        {debouncedQuery ? 'No hay resultados.' : 'No hay cotizaciones.'}
+                        {debouncedQuery ? 'No hay resultados en la nube.' : 'No hay cotizaciones.'}
                     </Text>
                 </View>
             }
@@ -264,104 +225,25 @@ const CotizadorScreen = ({ navigation }) => {
             <ActivityIndicator size="large" color={colors.primary} />
          </View>
       )}
-
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  
-  collapsibleWrapper: {
-    position: 'absolute',
-    left: 0, right: 0,
-    zIndex: 50, 
-    elevation: 5,
-  },
-  
-  controlsContent: {
-    paddingHorizontal: 0, 
-    paddingTop: 10, 
-    paddingBottom: 0, 
-  },
-
-  listHeaderContainer: {
-    marginTop: 5, 
-    marginBottom: 15,
-  },
-
-  createButton: {
-    flexDirection: 'row',
-    backgroundColor: '#ecfdf5', 
-    paddingVertical: 12, 
-    paddingHorizontal: 20,
-    borderRadius: 14, 
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#15c899', 
-    shadowColor: '#15c899',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 1,
-  },
-  createIconBg: {
-    backgroundColor: '#15c899', 
-    borderRadius: 8,
-    width: 28, 
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10
-  },
-  createButtonText: {
-    color: '#15c899', 
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3
-  },
-
+  collapsibleWrapper: { position: 'absolute', left: 0, right: 0, zIndex: 50, elevation: 5 },
+  controlsContent: { paddingHorizontal: 0, paddingTop: 10, paddingBottom: 0 },
+  listHeaderContainer: { marginTop: 5, marginBottom: 15 },
+  createButton: { flexDirection: 'row', backgroundColor: '#ecfdf5', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#15c899', shadowColor: '#15c899', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 1 },
+  createIconBg: { backgroundColor: '#15c899', borderRadius: 8, width: 28, height: 28, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  createButtonText: { color: '#15c899', fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
   center: { marginTop: 100, justifyContent: 'center', alignItems: 'center' },
   emptyText: { marginTop: 10, fontSize: 16 },
-
-  centerLoading: {
-      position: 'absolute',
-      left: 0, right: 0, top: 0, bottom: 0,
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 999
-  },
-
-  loadMoreButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 12,
-      marginVertical: 20,
-      marginHorizontal: 40,
-      borderRadius: 25,
-      borderWidth: 1,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2
-  },
-  loadMoreText: {
-      fontWeight: '700',
-      fontSize: 14
-  },
-  footerLoader: {
-      paddingVertical: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'row',
-      gap: 10
-  },
-  footerText: {
-      fontSize: 13,
-      fontWeight: '500'
-  }
+  centerLoading: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 999 },
+  loadMoreButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginVertical: 20, marginHorizontal: 40, borderRadius: 25, borderWidth: 1, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  loadMoreText: { fontWeight: '700', fontSize: 14 },
+  footerLoader: { paddingVertical: 20, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10 },
+  footerText: { fontSize: 13, fontWeight: '500' }
 });
 
 export default CotizadorScreen;

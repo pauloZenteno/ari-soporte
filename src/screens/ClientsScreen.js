@@ -27,6 +27,10 @@ const ClientsScreen = () => {
     const [viewMode, setViewMode] = useState('actives');
     const [expandedId, setExpandedId] = useState(null);
 
+    // --- NUEVA LÓGICA DE REFRESH ---
+    // Estado local exclusivo para el gesto pull-to-refresh
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
     const [fixedHeight, setFixedHeight] = useState(0); 
     const [controlsHeight, setControlsHeight] = useState(0); 
     
@@ -41,6 +45,25 @@ const ClientsScreen = () => {
     const canManageStatus = useMemo(() => 
         hasPermission(userProfile?.roleId, PERMISSIONS.MANAGE_CLIENT_STATUS), 
     [userProfile]);
+
+    // --- NUEVA LÓGICA DE REFRESH ---
+    // Función para manejar el gesto manual del usuario
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        if (viewMode === 'actives') {
+            refreshActives();
+        } else {
+            refreshInactives();
+        }
+    }, [viewMode, refreshActives, refreshInactives]);
+
+    // --- NUEVA LÓGICA DE REFRESH ---
+    // Apagar el spinner del pull-to-refresh cuando termine la carga en segundo plano
+    useEffect(() => {
+        if (!loadingActives && !loadingInactives) {
+            setIsRefreshing(false);
+        }
+    }, [loadingActives, loadingInactives]);
 
     const { translateY, onScroll } = useMemo(() => {
         const heightToHide = controlsHeight || 1; 
@@ -70,15 +93,15 @@ const ClientsScreen = () => {
     }, []);
 
     const getFilteredData = (data) => {
-  let result = filterClients(data, searchQuery);
-  const currentFilters = viewMode === 'actives' ? activeActiveFilter : activeInactiveFilter;
-  if (currentFilters?.sellerId) {
-    result = result.filter(
-      (client) => String(client.sellerId) === String(currentFilters.sellerId)
-    );
-  }
-  return result;
-};
+        let result = filterClients(data, searchQuery);
+        const currentFilters = viewMode === 'actives' ? activeActiveFilter : activeInactiveFilter;
+        if (currentFilters?.sellerId) {
+            result = result.filter(
+            (client) => String(client.sellerId) === String(currentFilters.sellerId)
+            );
+        }
+        return result;
+    };
 
     const renderClientItem = useCallback(({ item }) => {
         if (!item) return null;
@@ -127,7 +150,7 @@ const ClientsScreen = () => {
 
         const isLoading = isActives ? loadingActives : loadingInactives;
         const fetchMore = isActives ? fetchActives : fetchInactives;
-        const refresh = isActives ? refreshActives : refreshInactives;
+        // La variable refresh original ya no la usaremos directamente en el FlatList
 
         if (fixedHeight === 0) {
             return (
@@ -159,8 +182,11 @@ const ClientsScreen = () => {
                 
                 onEndReached={fetchMore}
                 onEndReachedThreshold={0.5}
-                refreshing={isLoading}
-                onRefresh={refresh}
+                
+                // --- NUEVA LÓGICA DE REFRESH APLICADA AQUÍ ---
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                
                 contentContainerStyle={{
                     paddingTop: fixedHeight + controlsHeight + 10,
                     paddingBottom: 80,
